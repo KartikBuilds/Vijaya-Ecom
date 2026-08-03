@@ -1,0 +1,3 @@
+import assert from "node:assert/strict";import {validateReviewForm} from "../lib/reviews/validation";
+function data(rating:string){const form=new FormData();form.set("customerName","Test Customer");form.set("rating",rating);form.set("content","A genuine test review.");form.set("productId","");form.set("status","DRAFT");form.set("sortOrder","0");form.set("reviewDate","");return form}
+assert.equal(validateReviewForm(data("5")).success,true);assert.equal(validateReviewForm(data("0")).success,false);assert.equal(validateReviewForm(data("6")).success,false);assert.equal(validateReviewForm(data("2.5")).success,false);console.log("Review validation checks passed.");

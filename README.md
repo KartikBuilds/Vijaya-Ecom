@@ -1,6 +1,6 @@
 # Vijaya Premix
 
-This repository contains the Next.js 15 App Router storefront, PostgreSQL/Prisma foundation, secure administrator access, and Product CMS. It uses strict TypeScript and locally compiled Tailwind CSS.
+This repository contains the Next.js 15 App Router storefront, PostgreSQL/Prisma foundation, secure administrator access, Product CMS, and admin-managed customer reviews. It uses strict TypeScript and locally compiled Tailwind CSS.
 
 PostgreSQL is the authoritative product catalogue. Public pages query published Prisma records for homepage products, search, filters, product details, preorder state, SEO, cart resolution, and wishlist resolution. Product CMS changes are revalidated across the storefront without a source deployment.
 
@@ -89,4 +89,6 @@ npm run test:product-validation
 - Prices and delivery remain “on request”; no payment or real checkout exists.
 - The placeholder canonical URL remains centralized in `lib/site.ts` and must be replaced before production.
 
-Reviews, recipes, and broader website content management remain later phases. The current recipe serving ideas are still structured application content, while their associated product availability and artwork resolve from PostgreSQL.
+Recipes and broader website content management remain later phases.
+
+Customer reviews are managed at `/admin/reviews`. Draft and archived reviews stay private; published reviews can appear on their associated product, and featured published reviews appear on the homepage (with a recent-published fallback). There is no anonymous public review submission. Review ratings are validated as integers from 1 through 5. The current recipe serving ideas are still structured application content, while their associated product availability and artwork resolve from PostgreSQL.

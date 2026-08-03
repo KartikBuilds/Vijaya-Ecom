@@ -17,6 +17,12 @@ enum ProductStatus {
   ARCHIVED
 }
 
+enum ReviewStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model User {
   id           String         @id @default(cuid())
   email        String         @unique
@@ -71,7 +77,26 @@ model Product {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   category         Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  reviews          Review[]
 
   @@index([categoryId])
   @@index([status, sortOrder])
+}
+
+model Review {
+  id           String       @id @default(cuid())
+  customerName String
+  rating       Int
+  content      String
+  productId    String?
+  status       ReviewStatus @default(DRAFT)
+  featured     Boolean      @default(false)
+  sortOrder    Int          @default(0)
+  reviewDate   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([status, featured, sortOrder])
+  @@index([productId, status])
 }
