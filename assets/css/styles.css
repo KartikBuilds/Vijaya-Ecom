@@ -1,0 +1,381 @@
+/* Vijaya Premix — supplementary styles.
+   Tailwind (CDN) handles almost everything via utility classes; this file
+   covers the handful of things utilities can't: base typography, custom
+   component states (toasts, filter chips), decorative shapes and
+   accessibility affordances. */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Nunito Sans", ui-sans-serif, sans-serif;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: "Baloo 2", ui-sans-serif, sans-serif;
+}
+
+/* ---------------------------------------------------------------------
+   Accessibility
+   ------------------------------------------------------------------- */
+:focus-visible {
+  outline: 3px solid #A51F24;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: #A51F24;
+  color: #FFF9F5;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 12px 0;
+  z-index: 100;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Nav links
+   ------------------------------------------------------------------- */
+.nav-link {
+  position: relative;
+  padding-bottom: 4px;
+  transition: color 150ms ease;
+}
+.nav-link:hover {
+  color: #A51F24;
+}
+.nav-link-active {
+  color: #A51F24;
+}
+.nav-link-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #E5A62B;
+}
+
+/* ---------------------------------------------------------------------
+   Filter chips (products / recipes)
+   ------------------------------------------------------------------- */
+.filter-chip {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.filter-chip-active {
+  background-color: #A51F24 !important;
+  color: #FFF9F5 !important;
+  border-color: #A51F24 !important;
+}
+
+/* ---------------------------------------------------------------------
+   Form fields
+   ------------------------------------------------------------------- */
+.field-invalid {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 1px #dc2626;
+}
+
+/* ---------------------------------------------------------------------
+   Toasts
+   ------------------------------------------------------------------- */
+.toast {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------
+   Line clamp fallback (in case the Tailwind CDN build omits the utility)
+   ------------------------------------------------------------------- */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------
+   Decorative hero shapes — soft abstract circles, brand-derived, no imagery
+   ------------------------------------------------------------------- */
+.hero-decor::before,
+.hero-decor::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 249, 245, 0.12);
+  pointer-events: none;
+}
+.hero-decor::before {
+  width: 260px;
+  height: 260px;
+  top: -80px;
+  right: 8%;
+}
+.hero-decor::after {
+  width: 140px;
+  height: 140px;
+  bottom: -40px;
+  left: 6%;
+  background: rgba(229, 166, 43, 0.18);
+}
+
+/* ---------------------------------------------------------------------
+   Horizontal scroll snap (gallery)
+   ------------------------------------------------------------------- */
+.snap-row {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.snap-row > * {
+  scroll-snap-align: start;
+}
+.snap-row::-webkit-scrollbar {
+  height: 6px;
+}
+.snap-row::-webkit-scrollbar-thumb {
+  background: rgba(165, 31, 36, 0.25);
+  border-radius: 999px;
+}
+
+/* ---------------------------------------------------------------------
+   Loading skeleton (used sparingly, e.g. below-the-fold placeholders)
+   ------------------------------------------------------------------- */
+.skeleton {
+  background: linear-gradient(90deg, #F9E7E4 25%, #FFF9F5 37%, #F9E7E4 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* ---------------------------------------------------------------------
+   Premium motion and interaction feedback
+   ------------------------------------------------------------------- */
+:root {
+  --vj-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --vj-fast: 160ms;
+  --vj-medium: 420ms;
+}
+
+.reveal-ready {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition: opacity var(--vj-medium) var(--vj-ease),
+              transform var(--vj-medium) var(--vj-ease);
+  transition-delay: var(--vj-delay, 0ms);
+}
+.reveal-ready.is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.hero-enter {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+  animation: vj-hero-enter 560ms var(--vj-ease) forwards;
+  animation-delay: var(--vj-delay, 0ms);
+}
+@keyframes vj-hero-enter {
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.hero-product-float {
+  animation: vj-product-float 5.5s ease-in-out 900ms infinite;
+}
+@keyframes vj-product-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -4px, 0); }
+}
+
+button,
+a.rounded-full,
+[data-add-to-cart],
+[data-view-recipe],
+[data-quick-view] {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 180ms;
+  transition-timing-function: var(--vj-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  button:hover,
+  a.rounded-full:hover {
+    transform: translate3d(0, -2px, 0);
+  }
+  .product-card:hover {
+    transform: translate3d(0, -4px, 0) !important;
+    box-shadow: 0 18px 40px rgba(75, 32, 32, 0.14);
+  }
+  .product-card img {
+    transition: transform 260ms var(--vj-ease);
+  }
+  .product-card:hover img {
+    transform: translate3d(0, -2px, 0) scale(1.015);
+  }
+}
+.vj-pressed { transform: scale(0.97) !important; }
+
+.add-confirmed {
+  background-color: #15803d !important;
+  border-color: #15803d !important;
+  color: white !important;
+}
+.cart-count-pulse { animation: vj-count-pulse 340ms var(--vj-ease); }
+@keyframes vj-count-pulse {
+  50% { transform: scale(1.18); }
+}
+.wishlist-pop { animation: vj-heart-pop 300ms var(--vj-ease); }
+@keyframes vj-heart-pop {
+  45% { transform: scale(1.18); }
+}
+.qty-feedback { animation: vj-qty-feedback 240ms var(--vj-ease); }
+@keyframes vj-qty-feedback {
+  50% { transform: scale(1.08); color: #A51F24; }
+}
+
+#cart-overlay { transition: opacity 280ms var(--vj-ease); }
+#cart-drawer { transition: transform 340ms var(--vj-ease); }
+
+#search-results:not(.hidden),
+#search-results-mobile:not(.hidden) {
+  animation: vj-dropdown-in 220ms var(--vj-ease) both;
+  transform-origin: top center;
+}
+@keyframes vj-dropdown-in {
+  from { opacity: 0; transform: translate3d(0, -6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.product-card.filter-enter,
+.recipe-card.filter-enter {
+  animation: vj-filter-enter 260ms var(--vj-ease) both;
+  animation-delay: var(--vj-delay, 0ms);
+}
+.product-card.filter-leaving,
+.recipe-card.filter-leaving {
+  opacity: 0;
+  transform: translate3d(0, 5px, 0);
+  transition: opacity 150ms ease, transform 150ms ease;
+  pointer-events: none;
+}
+@keyframes vj-filter-enter {
+  from { opacity: 0; transform: translate3d(0, 7px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+#vj-modal-overlay,
+#recipe-modal-overlay { transition: opacity 220ms var(--vj-ease); }
+#vj-modal-panel,
+#recipe-modal-panel {
+  transform: translate3d(0, 8px, 0) scale(0.98);
+  transition: transform 260ms var(--vj-ease);
+}
+#vj-modal-overlay:not(.opacity-0) #vj-modal-panel,
+#recipe-modal-overlay:not(.opacity-0) #recipe-modal-panel {
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+#mobile-menu.mobile-menu-animating {
+  display: block;
+  overflow: hidden;
+  transform-origin: top;
+}
+#mobile-menu.mobile-menu-opening { animation: vj-menu-open 240ms var(--vj-ease) both; }
+#mobile-menu.mobile-menu-closing { animation: vj-menu-close 180ms ease both; }
+#mobile-menu.mobile-menu-opening li { animation: vj-link-in 240ms var(--vj-ease) both; }
+#mobile-menu.mobile-menu-opening li:nth-child(2) { animation-delay: 35ms; }
+#mobile-menu.mobile-menu-opening li:nth-child(3) { animation-delay: 70ms; }
+#mobile-menu.mobile-menu-opening li:nth-child(4) { animation-delay: 105ms; }
+#mobile-menu.mobile-menu-opening li:nth-child(5) { animation-delay: 140ms; }
+@keyframes vj-menu-open {
+  from { opacity: 0; transform: translate3d(0, -8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes vj-menu-close {
+  to { opacity: 0; transform: translate3d(0, -6px, 0); }
+}
+@keyframes vj-link-in {
+  from { opacity: 0; transform: translate3d(0, -4px, 0); }
+}
+
+#login-form,
+#signup-form {
+  transition: opacity 440ms var(--vj-ease), transform 440ms var(--vj-ease);
+}
+.form-enter { animation: vj-form-enter 480ms var(--vj-ease) both; }
+@keyframes vj-form-enter {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+}
+input, select, textarea {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+#back-to-top {
+  display: grid !important;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.84);
+  transition: opacity 200ms var(--vj-ease), transform 200ms var(--vj-ease), background-color 180ms ease;
+}
+#back-to-top.back-to-top-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready,
+  .hero-enter,
+  .form-enter,
+  #vj-modal-panel,
+  #recipe-modal-panel,
+  #back-to-top {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .hero-product-float,
+  .cart-count-pulse,
+  .wishlist-pop,
+  .qty-feedback,
+  .filter-enter,
+  #search-results:not(.hidden),
+  #search-results-mobile:not(.hidden),
+  #mobile-menu.mobile-menu-opening,
+  #mobile-menu.mobile-menu-closing,
+  #mobile-menu.mobile-menu-opening li {
+    animation: none !important;
+  }
+  button,
+  a.rounded-full,
+  .vj-pressed,
+  .product-card:hover,
+  .product-card:hover img,
+  .product-card.filter-leaving,
+  .recipe-card.filter-leaving {
+    transform: none !important;
+  }
+}
