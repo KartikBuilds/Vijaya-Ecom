@@ -1,0 +1,3 @@
+import type {Metadata} from "next";import {Suspense} from "react";import {ProductGrid} from "@/components/storefront/ProductGrid";
+export const metadata:Metadata={title:"All Premixes",description:"Browse all seven Vijaya Premix products, including vegetarian gravy, chicken and fish premixes.",alternates:{canonical:"/products"}};
+export default function ProductsPage(){return <section className="mx-auto max-w-[1400px] px-4 py-12 sm:px-6 sm:py-16 lg:px-8"><div className="mb-10"><h1 className="font-display text-4xl font-bold text-vijaya-red sm:text-5xl">All Premixes</h1><p className="mt-2 text-vijaya-muted">Authentic flavour, made convenient.</p></div><Suspense fallback={<p>Loading products…</p>}><ProductGrid/></Suspense></section>}

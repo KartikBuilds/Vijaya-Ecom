@@ -1,0 +1,3 @@
+import type { Config } from "tailwindcss";
+const config: Config = { content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./data/**/*.{ts,tsx}"], theme: { extend: { colors: { vijaya: { red: "#A51F24", red2: "#B82A30", darkred: "#811B1E", cream: "#F7E7D2", offwhite: "#FFF9F5", pink: "#F9E7E4", dark: "#4B2020", muted: "#70433E", gold: "#E5A62B" } }, fontFamily: { display: ["Baloo 2", "ui-sans-serif", "sans-serif"], body: ["Nunito Sans", "ui-sans-serif", "sans-serif"] }, borderRadius: { "4xl": "1.75rem", "5xl": "2.5rem" }, boxShadow: { card: "0 10px 30px -12px rgba(129,27,30,.18)", soft: "0 4px 18px -6px rgba(75,32,32,.12)" } } }, plugins: [] };
+export default config;

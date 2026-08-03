@@ -1,0 +1,1 @@
+import type {MetadataRoute} from "next";export default function manifest():MetadataRoute.Manifest{return {name:"Vijaya Premix",short_name:"Vijaya",description:"Ready-to-cook Indian premixes",start_url:"/",display:"standalone",background_color:"#F7E7D2",theme_color:"#A51F24",icons:[{src:"/assets/images/brand/favicon.svg",sizes:"any",type:"image/svg+xml"}]}}

@@ -1,0 +1,1 @@
+export const site = { name:"Vijaya Premix", url:"https://www.vijayapremix.example", description:"Explore seven Vijaya Premix products: two vegetarian gravy premixes and five chicken and fish premixes." } as const;
