@@ -1,8 +1,8 @@
 # Vijaya Premix
 
-This repository contains the Next.js 15 App Router storefront, PostgreSQL/Prisma foundation, secure administrator access, and the Step 3 Product CMS. It uses strict TypeScript and locally compiled Tailwind CSS.
+This repository contains the Next.js 15 App Router storefront, PostgreSQL/Prisma foundation, secure administrator access, and Product CMS. It uses strict TypeScript and locally compiled Tailwind CSS.
 
-The customer storefront intentionally still reads the seven-product catalogue from `data/products.ts`. The database contains a seeded copy for the future CMS, but public product queries will move to PostgreSQL only in a later step.
+PostgreSQL is the authoritative product catalogue. Public pages query published Prisma records for homepage products, search, filters, product details, preorder state, SEO, cart resolution, and wishlist resolution. Product CMS changes are revalidated across the storefront without a source deployment.
 
 ## Requirements
 
@@ -80,13 +80,13 @@ npm run test:product-validation
 - Login and logout use same-origin, POST-only server routes; logout invalidates the database session and clears the cookie.
 - Admin pages declare `noindex, nofollow` metadata.
 
-## Current Step 3 boundaries
+## Current Step 4 boundaries
 
-- The admin dashboard and Product CMS use live database statistics and records.
+- The admin dashboard, Product CMS, and public product catalogue use live database records.
 - Product permanent deletion, durable file upload, reviews, recipes, homepage settings, orders, payments, media, analytics, and other CMS modules are not implemented.
 - Customer login/signup remains the existing browser-storage prototype; real customer authentication is not part of Step 2.
-- The public storefront continues using `data/products.ts` until the planned later database integration step.
+- Cart and wishlist persistence remain client-side and store product IDs only; current display data is resolved from published database products and stale IDs are removed.
 - Prices and delivery remain “on request”; no payment or real checkout exists.
 - The placeholder canonical URL remains centralized in `lib/site.ts` and must be replaced before production.
 
-Step 4 will connect the customer storefront to Prisma. Until then, Product CMS changes intentionally do not appear on public pages.
+Reviews, recipes, and broader website content management remain later phases. The current recipe serving ideas are still structured application content, while their associated product availability and artwork resolve from PostgreSQL.

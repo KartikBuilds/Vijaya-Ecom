@@ -1,3 +1,3 @@
-import { products } from "./products";
-export interface Recipe { id:string; title:string; category:"veg"|"non-veg"; mealType:"dinner"; difficulty:"See pack"; image:string; description:string; related:string }
-export const recipes:readonly Recipe[]=products.map((p)=>({id:p.id.replace(/-premix$/, ""),title:p.name.replace(/ Premix$/, ""),category:p.category,mealType:"dinner",difficulty:"See pack",image:p.image,description:`A serving idea using ${p.name}. Follow the directions printed on the official pack.`,related:p.id}));
+export interface Recipe { id:string; title:string; mealType:"dinner"; difficulty:"See pack"; description:string; relatedSlug:string }
+const definitions=[["brown-gravy","Brown Gravy","brown-gravy-premix"],["all-purpose-gravy","All-Purpose Gravy","all-purpose-gravy-premix"],["butter-chicken","Butter Chicken","butter-chicken-premix"],["chicken-tikka","Chicken Tikka","chicken-tikka-premix"],["fish-fry","Fish Fry","fish-fry-premix"],["fish-gravy","Fish Gravy","fish-gravy-premix"],["kadhai-chicken","Kadhai Chicken","kadhai-chicken-premix"]] as const;
+export const recipes:readonly Recipe[]=definitions.map(([id,title,relatedSlug])=>({id,title,relatedSlug,mealType:"dinner",difficulty:"See pack",description:`A serving idea using ${title} Premix. Follow the directions printed on the official pack.`}));

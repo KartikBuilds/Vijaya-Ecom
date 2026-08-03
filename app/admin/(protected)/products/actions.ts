@@ -8,7 +8,11 @@ import { type ProductFormState, validateProductForm } from "@/lib/products/valid
 
 async function validCategory(categoryId: string) { return Boolean(await db.category.findUnique({ where: { id: categoryId }, select: { id: true } })); }
 function duplicateSlug(error: unknown) { return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"; }
-function refreshProducts() { revalidatePath("/admin"); revalidatePath("/admin/products"); }
+function refreshProducts() {
+  revalidatePath("/admin"); revalidatePath("/admin/products");
+  revalidatePath("/"); revalidatePath("/products"); revalidatePath("/products/[slug]", "page");
+  revalidatePath("/recipes"); revalidatePath("/preorder"); revalidatePath("/cart"); revalidatePath("/sitemap.xml");
+}
 
 export async function createProduct(_state: ProductFormState, formData: FormData): Promise<ProductFormState> {
   await requireAdmin();

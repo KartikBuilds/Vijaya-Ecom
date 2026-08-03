@@ -1,0 +1,3 @@
+"use client";
+import { useStore } from "./StoreProvider";
+export function ProductActions({id,name}:{id:string;name:string}){const {add,wishlist,toggleWish}=useStore();const wished=wishlist.includes(id);return <div className="flex flex-wrap gap-3"><button onClick={()=>add(id)} className="rounded-full bg-vijaya-red px-7 py-3 font-bold text-white">Add to Cart</button><button onClick={()=>toggleWish(id)} aria-pressed={wished} className="rounded-full border-2 border-vijaya-red px-7 py-3 font-bold text-vijaya-red">{wished?"♥ Saved":"♡ Add to Wishlist"}<span className="sr-only"> {name}</span></button></div>}
