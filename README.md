@@ -22,6 +22,7 @@ cp .env.example .env
 - `ADMIN_EMAIL`: email provisioned by the seed command.
 - `ADMIN_PASSWORD`: 12–128 character admin password; stored only as a bcrypt hash.
 - `SESSION_SECRET`: independent random secret containing at least 32 characters.
+- `NEXT_PUBLIC_SITE_URL`: deployed HTTPS origin used by canonicals, sitemap, robots, and JSON-LD.
 
 Never commit a real environment file or reuse sample values in production.
 
@@ -88,15 +89,22 @@ Recipes are database-driven and managed at `/admin/recipes`, with Draft/Publishe
 
 `/admin/homepage` controls structured hero content, section visibility, promise items, Pack-to-Plate steps, and featured hero product selection. `/admin/settings` controls brand/contact/social/WhatsApp details, global SEO defaults, and structured About content. Text is rendered as plain text; the CMS does not accept executable HTML, CSS, JavaScript, or metadata scripts. Published preorder products dynamically populate `/preorder`.
 
-## Current Step 7 boundaries
+## Reviews CMS
+
+Customer reviews are managed at `/admin/reviews`. Draft and archived reviews stay private; published reviews can appear on their associated product, and featured published reviews appear on the homepage (with a recent-published fallback). There is no anonymous public review submission. Ratings are server-validated integers from 1 through 5.
+
+## Production deployment
+
+Deploy to Vercel (not GitHub Pages) with a managed PostgreSQL database. Configure every variable in `.env.example`, then run `npm run db:migrate` against production before serving traffic. Run `npm run db:seed` once with a unique strong admin password to provision/update the initial administrator; rotate or remove `ADMIN_PASSWORD` from deployment configuration afterward if operational policy permits. Never run `prisma db push`, `migrate reset`, or a destructive reset in production.
+
+No durable media provider is configured. Product/recipe CMS fields accept existing local public paths or validated HTTP(S) URLs; production upload UI must wait for configured Vercel Blob, Cloudinary, or S3-compatible storage. Login uses secure database sessions, but distributed brute-force rate limiting still requires a durable provider (for example a deployment-platform or managed rate-limit service) before high-risk public exposure; an in-memory serverless limiter is intentionally not presented as production protection.
+
+## Current limitations
 
 - The admin dashboard, Product CMS, and public product catalogue use live database records.
-- Product permanent deletion, durable file upload, reviews, recipes, homepage settings, orders, payments, media, analytics, and other CMS modules are not implemented.
+- Product permanent deletion, durable file upload, orders, payments, customer accounts, inventory, coupons, and analytics are not implemented.
 - Customer login/signup remains the existing browser-storage prototype; real customer authentication is not part of Step 2.
 - Cart and wishlist persistence remain client-side and store product IDs only; current display data is resolved from published database products and stale IDs are removed.
 - Prices and delivery remain “on request”; no payment or real checkout exists.
-- The placeholder canonical URL remains centralized in `lib/site.ts` and must be replaced before production.
-
-Recipes and broader website content management remain later phases.
-
-Customer reviews are managed at `/admin/reviews`. Draft and archived reviews stay private; published reviews can appear on their associated product, and featured published reviews appear on the homepage (with a recent-published fallback). There is no anonymous public review submission. Review ratings are validated as integers from 1 through 5. The current recipe serving ideas are still structured application content, while their associated product availability and artwork resolve from PostgreSQL.
+- `NEXT_PUBLIC_SITE_URL` falls back to localhost only for local development and must be configured on Vercel.
+- Customer login/signup remains a browser-storage prototype, and checkout does not create orders or take payment.
