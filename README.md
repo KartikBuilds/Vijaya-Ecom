@@ -1,6 +1,6 @@
 # Vijaya Premix
 
-This repository contains the Next.js 15 App Router storefront and the Step 2 PostgreSQL/Prisma foundation for secure administrator access. It uses strict TypeScript and locally compiled Tailwind CSS.
+This repository contains the Next.js 15 App Router storefront, PostgreSQL/Prisma foundation, secure administrator access, and the Step 3 Product CMS. It uses strict TypeScript and locally compiled Tailwind CSS.
 
 The customer storefront intentionally still reads the seven-product catalogue from `data/products.ts`. The database contains a seeded copy for the future CMS, but public product queries will move to PostgreSQL only in a later step.
 
@@ -49,6 +49,26 @@ npm run build
 
 Admin login is available only at `/admin/login`; no admin link appears in the public navigation and there is no public admin signup.
 
+## Step 3 Product CMS
+
+Authenticated administrators can use:
+
+- `/admin/products` to search and filter products, review live counts, and archive or restore records.
+- `/admin/products/new` to create a Draft or Published product.
+- `/admin/products/[id]` to edit product content, category, Decimal prices, image reference, preparation/servings text, visibility, ordering, and SEO metadata.
+
+Products support `DRAFT`, `PUBLISHED`, and `ARCHIVED` states. The normal interface never permanently deletes products. Archive preserves the record; Restore intentionally returns an archived product to `DRAFT` so publication requires a deliberate review.
+
+Prices use PostgreSQL `DECIMAL(10,2)` through Prisma Decimal and remain nullable. Compare-at price, when supplied, must be greater than or equal to the price.
+
+Image binaries are not stored in PostgreSQL. Step 3 accepts either an existing local `/assets/...` path or a validated external HTTP(S) URL and provides an object-contain preview. No durable upload provider is configured, so file upload is intentionally deferred rather than writing to ephemeral deployment storage.
+
+Product mutations use server actions, independently enforce the active `ADMIN` session, validate an explicit field allowlist with Zod, and safely handle unique slug conflicts. Run the deterministic validation checks with:
+
+```bash
+npm run test:product-validation
+```
+
 ## Admin security
 
 - Credentials are validated on the server with generic failure responses.
@@ -60,13 +80,13 @@ Admin login is available only at `/admin/login`; no admin link appears in the pu
 - Login and logout use same-origin, POST-only server routes; logout invalidates the database session and clears the cookie.
 - Admin pages declare `noindex, nofollow` metadata.
 
-## Current Step 2 boundaries
+## Current Step 3 boundaries
 
-- The `/admin` dashboard is a non-CRUD shell showing current catalogue counts.
-- Product CRUD, image upload, reviews, recipes, homepage settings, preorders, orders, payments, media, analytics, and other CMS tools are not implemented.
+- The admin dashboard and Product CMS use live database statistics and records.
+- Product permanent deletion, durable file upload, reviews, recipes, homepage settings, orders, payments, media, analytics, and other CMS modules are not implemented.
 - Customer login/signup remains the existing browser-storage prototype; real customer authentication is not part of Step 2.
 - The public storefront continues using `data/products.ts` until the planned later database integration step.
 - Prices and delivery remain “on request”; no payment or real checkout exists.
 - The placeholder canonical URL remains centralized in `lib/site.ts` and must be replaced before production.
 
-Step 3 is the product CMS. It should build on these protected routes and database models without changing the public storefront until its separate database-conversion step.
+Step 4 will connect the customer storefront to Prisma. Until then, Product CMS changes intentionally do not appear on public pages.

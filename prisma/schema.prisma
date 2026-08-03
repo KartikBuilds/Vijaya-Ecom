@@ -60,12 +60,14 @@ model Product {
   imagePath        String
   price            Decimal?      @db.Decimal(10, 2)
   compareAtPrice   Decimal?      @db.Decimal(10, 2)
-  preparationTime  Int?
-  servings         Int?
+  preparationTime  String?
+  servings         String?
   featured         Boolean       @default(false)
   preorder         Boolean       @default(false)
   status           ProductStatus @default(DRAFT)
   sortOrder        Int           @default(0)
+  seoTitle         String?
+  seoDescription   String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   category         Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
