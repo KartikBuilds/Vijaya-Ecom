@@ -80,7 +80,11 @@ npm run test:product-validation
 - Login and logout use same-origin, POST-only server routes; logout invalidates the database session and clears the cookie.
 - Admin pages declare `noindex, nofollow` metadata.
 
-## Current Step 4 boundaries
+## Recipe and video CMS
+
+Recipes are database-driven and managed at `/admin/recipes`, with Draft/Published/Archived lifecycle, product association, structured ingredient/instruction lists, SEO, and safe video URLs. YouTube URLs render through the privacy-enhanced embed domain; unsupported providers remain safe external links. Published recipes appear at `/recipes/[slug]`, and a featured published video recipe can appear on the homepage. No arbitrary iframe HTML is stored or rendered.
+
+## Current Step 6 boundaries
 
 - The admin dashboard, Product CMS, and public product catalogue use live database records.
 - Product permanent deletion, durable file upload, reviews, recipes, homepage settings, orders, payments, media, analytics, and other CMS modules are not implemented.

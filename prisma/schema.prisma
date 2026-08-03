@@ -23,6 +23,12 @@ enum ReviewStatus {
   ARCHIVED
 }
 
+enum RecipeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model User {
   id           String         @id @default(cuid())
   email        String         @unique
@@ -78,9 +84,38 @@ model Product {
   updatedAt        DateTime      @updatedAt
   category         Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   reviews          Review[]
+  recipes          Recipe[]
 
   @@index([categoryId])
   @@index([status, sortOrder])
+}
+
+model Recipe {
+  id String @id @default(cuid())
+  title String
+  slug String @unique
+  shortDescription String?
+  description String?
+  productId String?
+  imagePath String?
+  videoUrl String?
+  preparationTime String?
+  cookingTime String?
+  servings String?
+  difficulty String?
+  ingredients Json
+  instructions Json
+  category String?
+  featured Boolean @default(false)
+  status RecipeStatus @default(DRAFT)
+  sortOrder Int @default(0)
+  seoTitle String?
+  seoDescription String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product Product? @relation(fields:[productId],references:[id],onDelete:SetNull)
+  @@index([status,featured,sortOrder])
+  @@index([productId,status])
 }
 
 model Review {
