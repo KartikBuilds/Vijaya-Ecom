@@ -118,6 +118,54 @@ model Recipe {
   @@index([productId,status])
 }
 
+model SiteSettings {
+  id String @id @default("site")
+  businessName String @default("Vijaya Premix")
+  brandDescription String @default("Ready-to-cook Indian premixes for convenient home cooking.")
+  phone String?
+  email String?
+  address String?
+  whatsappNumber String?
+  whatsappMessage String?
+  instagramUrl String?
+  facebookUrl String?
+  youtubeUrl String?
+  defaultSiteTitle String @default("Vijaya Premix | Ready-to-Cook Indian Premixes")
+  defaultMetaDescription String @default("Ready-to-cook Indian premixes from Vijaya Premix.")
+  defaultOgImage String @default("/assets/images/brand/vijaya-premix-logo.jpeg")
+  aboutHeading String @default("Authentic flavour. Less kitchen hassle.")
+  aboutDescription String @default("Vijaya Premix makes ready-to-cook Indian premixes for convenient home cooking.")
+  mission String?
+  vision String?
+  promiseText String @default("Original branded pack artwork, honest product information, and convenient home cooking.")
+  updatedAt DateTime @updatedAt
+}
+
+model HomepageSettings {
+  id String @id @default("homepage")
+  heroEyebrow String?
+  heroHeading String @default("Cook Delicious. Cook Instantly.")
+  heroDescription String @default("Authentic flavours without the kitchen hassle.")
+  heroCtaLabel String @default("Shop Premixes")
+  heroCtaUrl String @default("/products")
+  heroProductId String?
+  showOffer Boolean @default(false)
+  showCategories Boolean @default(true)
+  showProducts Boolean @default(true)
+  showPromise Boolean @default(true)
+  showPackToPlate Boolean @default(true)
+  showRecipeVideo Boolean @default(true)
+  showReviews Boolean @default(true)
+  showPreorder Boolean @default(true)
+  showGallery Boolean @default(false)
+  showNewsletter Boolean @default(false)
+  promiseHeading String @default("Our Promise")
+  promiseDescription String @default("Authentic flavour made convenient for your kitchen.")
+  promiseItems Json @default("[]")
+  packToPlateItems Json @default("[]")
+  updatedAt DateTime @updatedAt
+}
+
 model Review {
   id           String       @id @default(cuid())
   customerName String

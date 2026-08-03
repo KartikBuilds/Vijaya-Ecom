@@ -84,7 +84,11 @@ npm run test:product-validation
 
 Recipes are database-driven and managed at `/admin/recipes`, with Draft/Published/Archived lifecycle, product association, structured ingredient/instruction lists, SEO, and safe video URLs. YouTube URLs render through the privacy-enhanced embed domain; unsupported providers remain safe external links. Published recipes appear at `/recipes/[slug]`, and a featured published video recipe can appear on the homepage. No arbitrary iframe HTML is stored or rendered.
 
-## Current Step 6 boundaries
+## Website content management
+
+`/admin/homepage` controls structured hero content, section visibility, promise items, Pack-to-Plate steps, and featured hero product selection. `/admin/settings` controls brand/contact/social/WhatsApp details, global SEO defaults, and structured About content. Text is rendered as plain text; the CMS does not accept executable HTML, CSS, JavaScript, or metadata scripts. Published preorder products dynamically populate `/preorder`.
+
+## Current Step 7 boundaries
 
 - The admin dashboard, Product CMS, and public product catalogue use live database records.
 - Product permanent deletion, durable file upload, reviews, recipes, homepage settings, orders, payments, media, analytics, and other CMS modules are not implemented.
