@@ -1,110 +1,125 @@
 # Vijaya Premix
 
-This repository contains the Next.js 15 App Router storefront, PostgreSQL/Prisma foundation, secure administrator access, Product CMS, and admin-managed customer reviews. It uses strict TypeScript and locally compiled Tailwind CSS.
-
-PostgreSQL is the authoritative product catalogue. Public pages query published Prisma records for homepage products, search, filters, product details, preorder state, SEO, cart resolution, and wishlist resolution. Product CMS changes are revalidated across the storefront without a source deployment.
-
-## Requirements
-
-- Node.js supported by Next.js 15
-- PostgreSQL
-- npm
+Next.js 15 App Router storefront and internal Vijaya Admin management platform backed by PostgreSQL and Prisma.
 
 ## Environment
 
-Copy `.env.example` to an ignored local environment file and replace every sample value:
+Copy `.env.example` to an ignored local environment file and configure:
 
-```bash
-cp .env.example .env
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/vijaya_premix"
+ADMIN_EMAIL="admin@example.com"
+ADMIN_USERNAME="Sujata"
+ADMIN_PASSWORD=<secure environment value>
+SESSION_SECRET="generate-a-long-random-secret"
+NEXT_PUBLIC_SITE_URL="https://your-production-domain.example"
 ```
 
-- `DATABASE_URL`: PostgreSQL connection string.
-- `ADMIN_EMAIL`: email provisioned by the seed command.
-- `ADMIN_PASSWORD`: 12–128 character admin password; stored only as a bcrypt hash.
-- `SESSION_SECRET`: independent random secret containing at least 32 characters.
-- `NEXT_PUBLIC_SITE_URL`: deployed HTTPS origin used by canonicals, sitemap, robots, and JSON-LD.
+Never commit real `.env*` files. `ADMIN_PASSWORD` is provisioning input only; the application stores only a bcrypt password hash.
 
-Never commit a real environment file or reuse sample values in production.
-
-## Install and database setup
+## Setup
 
 ```bash
 npm install
 npm run db:generate
 npm run db:migrate
 npm run db:seed
-```
-
-Use `npm run db:migrate:dev -- --name <migration-name>` only when authoring a new migration. `npm run db:studio` opens Prisma Studio for local inspection.
-
-The seed is idempotent by category slug, product slug, and admin email. Explicitly running it updates the configured email-matched administrator’s password hash, enforces the `ADMIN` role, and reactivates the account. It never logs a password or hash.
-
-## Run and validate
-
-```bash
-npm run dev
 npm run lint
 npm run typecheck
 npm run build
 ```
 
-Admin login is available only at `/admin/login`; no admin link appears in the public navigation and there is no public admin signup.
+Use Prisma migrations for schema history. Do not use `prisma db push` for production changes.
 
-## Step 3 Product CMS
-
-Authenticated administrators can use:
-
-- `/admin/products` to search and filter products, review live counts, and archive or restore records.
-- `/admin/products/new` to create a Draft or Published product.
-- `/admin/products/[id]` to edit product content, category, Decimal prices, image reference, preparation/servings text, visibility, ordering, and SEO metadata.
-
-Products support `DRAFT`, `PUBLISHED`, and `ARCHIVED` states. The normal interface never permanently deletes products. Archive preserves the record; Restore intentionally returns an archived product to `DRAFT` so publication requires a deliberate review.
-
-Prices use PostgreSQL `DECIMAL(10,2)` through Prisma Decimal and remain nullable. Compare-at price, when supplied, must be greater than or equal to the price.
-
-Image binaries are not stored in PostgreSQL. Step 3 accepts either an existing local `/assets/...` path or a validated external HTTP(S) URL and provides an object-contain preview. No durable upload provider is configured, so file upload is intentionally deferred rather than writing to ephemeral deployment storage.
-
-Product mutations use server actions, independently enforce the active `ADMIN` session, validate an explicit field allowlist with Zod, and safely handle unique slug conflicts. Run the deterministic validation checks with:
+For reproducible local PostgreSQL:
 
 ```bash
-npm run test:product-validation
+docker compose --env-file .env.local -f compose.dev.yml up -d postgres
 ```
 
-## Admin security
+The local `.env.local` file must define `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, and a matching `DATABASE_URL`.
 
-- Credentials are validated on the server with generic failure responses.
-- Passwords are hashed with bcrypt (cost 12).
-- A successful login creates 32 random bytes of session entropy.
-- Only an HMAC-SHA-256 token hash is stored in PostgreSQL.
-- The opaque token cookie is `HttpOnly`, `SameSite=Lax`, secure in production, and expires after seven days.
-- Protected admin layouts verify the database session, expiry, active state, and `ADMIN` role server-side.
-- Login and logout use same-origin, POST-only server routes; logout invalidates the database session and clears the cookie.
-- Admin pages declare `noindex, nofollow` metadata.
+## Admin Provisioning
 
-## Recipe and video CMS
+`npm run db:seed` provisions or updates the configured initial administrator by `ADMIN_EMAIL`, assigns `ADMIN_USERNAME`, sets role `SUPER_ADMIN`, activates the account, and stores only a bcrypt hash. The public admin login accepts username or email plus the configured password. No public admin signup exists.
 
-Recipes are database-driven and managed at `/admin/recipes`, with Draft/Published/Archived lifecycle, product association, structured ingredient/instruction lists, SEO, and safe video URLs. YouTube URLs render through the privacy-enhanced embed domain; unsupported providers remain safe external links. Published recipes appear at `/recipes/[slug]`, and a featured published video recipe can appear on the homepage. No arbitrary iframe HTML is stored or rendered.
+## Admin Architecture
 
-## Website content management
+Protected admin routes live under `/admin` and use server-side session checks. Route groups currently expose:
 
-`/admin/homepage` controls structured hero content, section visibility, promise items, Pack-to-Plate steps, and featured hero product selection. `/admin/settings` controls brand/contact/social/WhatsApp details, global SEO defaults, and structured About content. Text is rendered as plain text; the CMS does not accept executable HTML, CSS, JavaScript, or metadata scripts. Published preorder products dynamically populate `/preorder`.
+- `/admin`, `/admin/login`
+- `/admin/profile`, `/admin/security`
+- `/admin/team`, `/admin/roles`
+- `/admin/products`, `/admin/recipes`, `/admin/reviews`, `/admin/media`
+- `/admin/customers`, `/admin/customers/[id]`
+- `/admin/content`, `/admin/homepage`, `/admin/banners`, `/admin/ugc`
+- `/admin/feedback`, `/admin/notifications`
+- `/admin/analytics`, `/admin/activity`
+- `/admin/settings`
 
-## Reviews CMS
+Admin pages declare `noindex, nofollow`.
 
-Customer reviews are managed at `/admin/reviews`. Draft and archived reviews stay private; published reviews can appear on their associated product, and featured published reviews appear on the homepage (with a recent-published fallback). There is no anonymous public review submission. Ratings are server-validated integers from 1 through 5.
+## Customer Authentication
 
-## Production deployment
+Customer `/login`, `/signup`, and `/logout` use server/database authentication. Passwords are bcrypt-hashed, sessions are stored in `CustomerSession`, cookies are `HttpOnly`, expired sessions are rejected, and disabled or blocked customers cannot authenticate. Admin block/disable actions revoke active customer sessions.
 
-Deploy to Vercel (not GitHub Pages) with a managed PostgreSQL database. Configure every variable in `.env.example`, then run `npm run db:migrate` against production before serving traffic. Run `npm run db:seed` once with a unique strong admin password to provision/update the initial administrator; rotate or remove `ADMIN_PASSWORD` from deployment configuration afterward if operational policy permits. Never run `prisma db push`, `migrate reset`, or a destructive reset in production.
+Cart and wishlist persistence remain browser-side storefront preferences; account authentication no longer uses localStorage.
 
-No durable media provider is configured. Product/recipe CMS fields accept existing local public paths or validated HTTP(S) URLs; production upload UI must wait for configured Vercel Blob, Cloudinary, or S3-compatible storage. Login uses secure database sessions, but distributed brute-force rate limiting still requires a durable provider (for example a deployment-platform or managed rate-limit service) before high-risk public exposure; an in-memory serverless limiter is intentionally not presented as production protection.
+## Roles and Permissions
 
-## Current limitations
+RBAC is centralized in `lib/auth/permissions.ts`:
 
-- The admin dashboard, Product CMS, and public product catalogue use live database records.
-- Product permanent deletion, durable file upload, orders, payments, customer accounts, inventory, coupons, and analytics are not implemented.
-- Customer login/signup remains the existing browser-storage prototype; real customer authentication is not part of Step 2.
-- Cart and wishlist persistence remain client-side and store product IDs only; current display data is resolved from published database products and stale IDs are removed.
-- Prices and delivery remain “on request”; no payment or real checkout exists.
-- `NEXT_PUBLIC_SITE_URL` falls back to localhost only for local development and must be configured on Vercel.
-- Customer login/signup remains a browser-storage prototype, and checkout does not create orders or take payment.
+- `SUPER_ADMIN`: full platform access.
+- `PRODUCT_MANAGER`: products, media, own profile/security, analytics.
+- `CONTENT_MANAGER`: recipes, reviews, homepage/content, banners, UGC, media, notifications, analytics.
+- `ORDER_MANAGER`: customer, feedback, notifications, analytics, own profile/security.
+
+Pages and server actions independently call `requirePermission()` or `requireRole()`. Hidden navigation is not treated as authorization.
+
+## Publishing Workflow
+
+Products, recipes, reviews, banners, and UGC use controlled lifecycle states such as `DRAFT`, `SCHEDULED`, `PUBLISHED`, `HIDDEN`, `ARCHIVED`, plus moderation states where appropriate. Public queries dynamically require `status=PUBLISHED`, `publishAt <= now()` when set, and `unpublishAt > now()` when set, so scheduled content does not require an administrator browser tab.
+
+Preview/publish UX is foundation-level in this iteration; supported admin forms persist drafts and public storefront queries exclude non-public states.
+
+## Management Modules
+
+- Products: existing CMS preserved, with expanded schema for pinned, preorder messaging, scheduling, visibility, and SEO.
+- Recipes: product association, safe HTTP(S) video URLs, structured ingredients/instructions, scheduling, SEO.
+- Reviews: moderation lifecycle, featured/pinned flags, internal moderation notes.
+- Homepage: structured hero, CTA, featured product, section visibility, promise and Pack-to-Plate content.
+- Banners: controlled placements (`HOME_HERO`, `HOME_PROMO`, `PRODUCTS_TOP`, `PREORDER`, `GLOBAL_NOTICE`), schedule fields, CTA fields.
+- Media: local/public asset and external URL registry. Production upload requires durable storage.
+- Customers: status-ready customer records with privacy-conscious activity, review and UGC summaries.
+- UGC: customer cooking content moderation with approved/rejected/hidden/archive states.
+- Feedback: inquiry categorization, status workflow, internal notes.
+- Notifications: unread/read records, mark one/all read, entity links.
+- Analytics: controlled first-party event model with empty states when no records exist.
+- Activity: audit log for important admin changes, without secrets or tokens.
+- Security: password change with current password verification, bcrypt hashing, session list, logout other/all sessions.
+- Team: Super Admin staff creation, role assignment, activation/deactivation, and final active Super Admin protection.
+
+## Media Configuration
+
+Durable upload storage is intentionally not faked. Configure Vercel Blob, Cloudinary, S3, or another durable provider before enabling production uploads.
+
+Current status: `MEDIA PROVIDER CONFIGURATION REQUIRED`.
+
+## Rate Limiting
+
+Admin and customer login use PostgreSQL-backed throttling via `AuthThrottle`. Keys are HMAC-hashed with `SESSION_SECRET`; raw passwords and raw credential secrets are not stored.
+
+## Storefront Integration
+
+Public product, recipe, and review queries only return currently eligible published content. Draft, scheduled-before-publish, hidden, archived, rejected, and internal-note fields are not exposed through storefront helpers.
+
+## Remaining Limitations
+
+- Orders, payments, inventory, customer authentication, customer sessions, and real upload storage are not implemented.
+- Customer pages are architecture-ready and show empty states when no real customer accounts exist.
+- Exact automatic status transitions still require deployment cron if destructive state changes are desired; current public visibility is dynamic and time-aware.
+- Browser QA at all requested viewport widths requires a runnable local build/dev server and browser automation.
+
+## CI Validation
+
+`.github/workflows/admin-platform-validation.yml` runs npm clean install with optional dependencies, Prisma validation/generation/migrations, seed, lint, TypeScript, validation scripts, build, and a tracked secret scan against a PostgreSQL service container.

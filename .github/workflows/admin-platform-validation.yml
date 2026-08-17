@@ -1,0 +1,118 @@
+name: Admin Platform Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, codex/admin-recovery-validation]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: vijaya_test
+          POSTGRES_USER: vijaya_test
+          POSTGRES_PASSWORD: vijaya_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vijaya_test -d vijaya_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://vijaya_test:vijaya_test_password@localhost:5432/vijaya_test?schema=public
+      ADMIN_EMAIL: admin-ci@example.com
+      ADMIN_USERNAME: CI_Super_Admin
+      ADMIN_PASSWORD: ci-only-admin-password-123
+      SESSION_SECRET: ci-only-session-secret-with-more-than-32-characters
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+      E2E_BASE_URL: http://127.0.0.1:3000
+      CI: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Runtime diagnostic
+        run: node -e "console.log(process.platform, process.arch)"
+
+      - name: Install dependencies
+        run: npm ci --include=optional
+
+      - name: Prisma validate and generate
+        run: |
+          npx prisma validate
+          npx prisma generate
+
+      - name: Prisma migrate
+        run: |
+          npx prisma migrate status
+          npx prisma migrate deploy
+
+      - name: Seed and verify idempotency
+        run: |
+          npm run db:seed
+          npm run db:seed
+
+      - name: Static validation
+        run: |
+          npm run lint
+          npx tsc --noEmit
+          npm run test:validation
+          git diff --check
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save @playwright/test
+          npx playwright install --with-deps chromium
+
+      - name: Start application
+        run: |
+          npm run start > /tmp/vijaya-next.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/vijaya-next.log
+          exit 1
+
+      - name: Browser and responsive QA
+        run: npm run test:e2e
+
+      - name: Secret scan
+        run: |
+          git grep -n "Vijaya@2006" -- . && exit 1 || true
+          git grep -n "postgresql://.*:.*@" -- . ':!.env.example' ':!README.md' ':!.github/workflows/admin-platform-validation.yml' && exit 1 || true
+
+      - name: Upload Next logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-runtime-log
+          path: /tmp/vijaya-next.log
+          if-no-files-found: ignore
+
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

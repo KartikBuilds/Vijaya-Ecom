@@ -3,21 +3,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Prisma, ProductStatus } from "@prisma/client";
 import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/auth/permissions";
 import { archiveProduct, restoreProduct } from "./actions";
 import { ConfirmSubmit } from "@/components/admin/ConfirmSubmit";
 
 export const metadata: Metadata = { title: "Products | Admin" };
-const statusOptions = [["active","Active"],["all","All"],["published","Published"],["draft","Draft"],["archived","Archived"]];
-function statusWhere(value?: string): Prisma.ProductWhereInput["status"] { if (value === "all") return undefined; if (value === "published") return ProductStatus.PUBLISHED; if (value === "draft") return ProductStatus.DRAFT; if (value === "archived") return ProductStatus.ARCHIVED; return { not: ProductStatus.ARCHIVED }; }
+const statusOptions = [["active","Active"],["all","All"],["published","Published"],["scheduled","Scheduled"],["hidden","Hidden"],["draft","Draft"],["archived","Archived"]];
+function statusWhere(value?: string): Prisma.ProductWhereInput["status"] { if (value === "all") return undefined; if (value === "published") return ProductStatus.PUBLISHED; if (value === "scheduled") return ProductStatus.SCHEDULED; if (value === "hidden") return ProductStatus.HIDDEN; if (value === "draft") return ProductStatus.DRAFT; if (value === "archived") return ProductStatus.ARCHIVED; return { not: ProductStatus.ARCHIVED }; }
 function money(value: Prisma.Decimal | null) { return value === null ? "Price on request" : `₹${value.toFixed(2)}`; }
 
 export default async function ProductListPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; category?: string; success?: string; error?: string }> }) {
+  await requirePermission("products:write");
   const params = await searchParams, q = params.q?.trim() ?? "", status = params.status ?? "active", category = params.category ?? "all";
   const categories = await db.category.findMany({ orderBy: { name: "asc" } });
   const validCategory = categories.find((item) => item.slug === category)?.slug;
   const where: Prisma.ProductWhereInput = { status: statusWhere(status), ...(validCategory ? { category: { slug: validCategory } } : {}), ...(q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] } : {}) };
   const [products, total, published, drafts, archived] = await Promise.all([
-    db.product.findMany({ where, include: { category: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }), db.product.count(), db.product.count({ where: { status: ProductStatus.PUBLISHED } }), db.product.count({ where: { status: ProductStatus.DRAFT } }), db.product.count({ where: { status: ProductStatus.ARCHIVED } }),
+    db.product.findMany({ where, include: { category: true }, orderBy: [{ pinned: "desc" }, { sortOrder: "asc" }, { name: "asc" }] }), db.product.count(), db.product.count({ where: { status: ProductStatus.PUBLISHED } }), db.product.count({ where: { status: ProductStatus.DRAFT } }), db.product.count({ where: { status: ProductStatus.ARCHIVED } }),
   ]);
   const notices: Record<string,string> = { created: "Product created successfully.", updated: "Product updated successfully.", archived: "Product archived.", restored: "Product restored to Draft." };
   return <section><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-vijaya-gold">Product CMS</p><h1 className="mt-1 font-display text-4xl font-bold text-vijaya-red">Products</h1><p className="mt-1 text-sm text-vijaya-muted">Manage the database catalogue. Published changes synchronize with the storefront.</p></div><Link href="/admin/products/new" className="rounded-full bg-vijaya-red px-6 py-3 text-center font-bold text-white">Create Product</Link></div>

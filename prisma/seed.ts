@@ -15,8 +15,10 @@ const seededProducts = [
 
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const adminUsername = process.env.ADMIN_USERNAME?.trim();
   const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminEmail || !adminPassword) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD are required to seed the admin user.");
+  if (!adminEmail || !adminUsername || !adminPassword) throw new Error("ADMIN_EMAIL, ADMIN_USERNAME and ADMIN_PASSWORD are required to seed the admin user.");
+  if (!/^[A-Za-z0-9_.-]{3,40}$/.test(adminUsername)) throw new Error("ADMIN_USERNAME must be 3-40 characters and contain only letters, numbers, dots, underscores, or hyphens.");
   if (adminPassword.length < 12 || adminPassword.length > 128) throw new Error("ADMIN_PASSWORD must be between 12 and 128 characters.");
 
   const [veg, nonVeg] = await Promise.all([
@@ -35,8 +37,8 @@ async function main() {
   const passwordHash = await hash(adminPassword, 12);
   await prisma.user.upsert({
     where: { email: adminEmail },
-    update: { passwordHash, role: Role.ADMIN, active: true },
-    create: { email: adminEmail, passwordHash, role: Role.ADMIN, active: true },
+    update: { username: adminUsername, displayName: adminUsername, passwordHash, role: Role.SUPER_ADMIN, active: true },
+    create: { email: adminEmail, username: adminUsername, displayName: adminUsername, passwordHash, role: Role.SUPER_ADMIN, active: true },
   });
   console.log("Seed completed: admin, 2 categories, and 7 products are ready.");
 }

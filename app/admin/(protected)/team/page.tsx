@@ -1,0 +1,20 @@
+import type { Metadata } from "next";
+import { Role } from "@prisma/client";
+import { requirePermission, roleLabels } from "@/lib/auth/permissions";
+import { db } from "@/lib/db";
+import { createStaffAdmin, updateStaffAdmin } from "./actions";
+
+export const metadata: Metadata = { title: "Team | Admin" };
+const input = "w-full rounded-2xl border border-vijaya-red/20 bg-white px-4 py-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-vijaya-red";
+
+export default async function TeamPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
+  await requirePermission("team:write");
+  const params = await searchParams;
+  const users = await db.user.findMany({ orderBy: [{ role: "asc" }, { createdAt: "asc" }] });
+  return <section className="space-y-6"><div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-vijaya-gold">Super Admin</p><h1 className="font-display text-4xl font-bold text-vijaya-red">Team Management</h1><p className="text-sm text-vijaya-muted">Create staff administrators, assign roles, activate or deactivate access.</p></div>
+    {params.success && <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">Team changes saved.</p>}
+    {params.error && <p className="rounded-2xl bg-vijaya-pink px-4 py-3 text-sm font-bold text-vijaya-red">{params.error === "last-super" ? "Cannot deactivate the final active Super Admin." : "Review the team form values."}</p>}
+    <form action={createStaffAdmin} className="rounded-4xl bg-white p-6 shadow-soft"><h2 className="font-display text-2xl font-bold text-vijaya-red">Create Staff Administrator</h2><div className="mt-4 grid gap-4 md:grid-cols-5"><input name="displayName" required placeholder="Display name" className={input} /><input name="username" required placeholder="Username" className={input} /><input name="email" type="email" required placeholder="Email" className={input} /><input name="password" type="password" minLength={12} maxLength={128} required placeholder="Initial password" className={input} /><select name="role" defaultValue={Role.PRODUCT_MANAGER} className={input}>{Object.values(Role).filter((role) => role !== Role.SUPER_ADMIN).map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></div><button className="mt-5 rounded-full bg-vijaya-red px-7 py-3 font-bold text-white">Create Staff Administrator</button></form>
+    <div className="overflow-hidden rounded-4xl bg-white shadow-soft"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-vijaya-offwhite text-xs uppercase text-vijaya-muted"><tr><th className="px-5 py-4">Admin</th><th className="px-4 py-4">Role</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Last Login</th><th className="px-5 py-4">Update</th></tr></thead><tbody className="divide-y divide-vijaya-red/10">{users.map((admin) => <tr key={admin.id}><td className="px-5 py-4"><p className="font-bold">{admin.displayName ?? admin.username ?? admin.email}</p><p className="text-xs text-vijaya-muted">{admin.username ?? "No username"} · {admin.email}</p></td><td className="px-4 py-4">{roleLabels[admin.role]}</td><td className="px-4 py-4">{admin.active ? "Active" : "Inactive"}</td><td className="px-4 py-4 text-xs text-vijaya-muted">{admin.lastLoginAt?.toLocaleString("en-IN") ?? "Never"}</td><td className="px-5 py-4"><form action={updateStaffAdmin} className="flex min-w-[280px] flex-wrap gap-2"><input type="hidden" name="id" value={admin.id} /><select name="role" defaultValue={admin.role} className="rounded-full border px-3 py-2 text-xs">{Object.values(Role).map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select><label className="flex items-center gap-2 rounded-full bg-vijaya-offwhite px-3 py-2 text-xs font-bold"><input name="active" type="checkbox" defaultChecked={admin.active} />Active</label><button className="rounded-full bg-vijaya-dark px-4 py-2 text-xs font-bold text-white">Save</button></form></td></tr>)}</tbody></table></div></div>
+  </section>;
+}

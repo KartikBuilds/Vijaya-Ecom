@@ -1,0 +1,14 @@
+/* eslint-disable @next/next/no-img-element */
+import type { Metadata } from "next";
+import { UgcStatus } from "@prisma/client";
+import { requirePermission } from "@/lib/auth/permissions";
+import { db } from "@/lib/db";
+import { updateUgc } from "./actions";
+
+export const metadata: Metadata = { title: "User Content | Admin" };
+
+export default async function UgcPage() {
+  await requirePermission("content:write");
+  const items = await db.userGeneratedContent.findMany({ include: { customer: true }, orderBy: { submittedAt: "desc" } });
+  return <section className="space-y-6"><div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-vijaya-gold">Moderation</p><h1 className="font-display text-4xl font-bold text-vijaya-red">User Content</h1><p className="text-sm text-vijaya-muted">Customer cooking photos and captions, ready for future submission flows.</p></div><div className="grid gap-4 lg:grid-cols-2">{items.map((item) => <article key={item.id} className="rounded-4xl bg-white p-5 shadow-soft"><div className="grid gap-4 sm:grid-cols-[160px_1fr]"><div className="flex h-40 items-center justify-center rounded-3xl bg-vijaya-offwhite">{item.imagePath ? <img src={item.imagePath} alt="" className="h-full w-full object-contain" /> : <span className="text-sm text-vijaya-muted">No image</span>}</div><div><p className="text-xs font-bold text-vijaya-gold">{item.status}</p><p className="font-bold">{item.customer?.name ?? "Unknown customer"}</p><p className="text-sm text-vijaya-muted">{item.caption ?? "No caption"}</p><p className="mt-2 text-xs text-vijaya-muted">{item.submittedAt.toLocaleString("en-IN")}</p></div></div><form action={updateUgc} className="mt-4 grid gap-3 sm:grid-cols-2"><input type="hidden" name="id" value={item.id} /><select name="status" defaultValue={item.status} className="rounded-2xl border px-4 py-3 text-sm">{Object.values(UgcStatus).map((status) => <option key={status} value={status}>{status}</option>)}</select><textarea name="moderationNotes" defaultValue={item.moderationNotes ?? ""} placeholder="Moderation notes" className="rounded-2xl border px-4 py-3 text-sm" /><label className="flex items-center gap-2 rounded-2xl bg-vijaya-offwhite px-4 py-3 text-sm font-bold"><input name="featured" type="checkbox" defaultChecked={item.featured} />Featured</label><label className="flex items-center gap-2 rounded-2xl bg-vijaya-offwhite px-4 py-3 text-sm font-bold"><input name="pinned" type="checkbox" defaultChecked={item.pinned} />Pinned</label><button className="rounded-full bg-vijaya-dark px-5 py-2.5 text-sm font-bold text-white sm:col-span-2">Save Moderation</button></form></article>)}{items.length === 0 && <p className="rounded-4xl bg-white p-8 text-center text-sm text-vijaya-muted shadow-soft lg:col-span-2">No user-generated content has been submitted.</p>}</div></section>;
+}

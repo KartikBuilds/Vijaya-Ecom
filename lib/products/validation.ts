@@ -2,6 +2,7 @@ import { Prisma, ProductStatus } from "@prisma/client";
 import { z } from "zod";
 
 const optionalText = (maximum: number) => z.string().trim().max(maximum).transform((value) => value || null);
+const optionalDate = z.string().trim().refine((value) => !value || !Number.isNaN(Date.parse(value)), "Enter a valid date.").transform((value) => value ? new Date(value) : null);
 const money = z.string().trim().refine((value) => value === "" || /^-?\d+(\.\d{1,2})?$/.test(value), "Enter a valid amount with up to 2 decimal places.");
 const imageValue = z.string().trim().min(1, "Product image is required.").max(2048).refine((value) => {
   if (value.startsWith("/")) return !value.startsWith("//") && !value.includes("\\");
@@ -19,9 +20,14 @@ const productFormSchema = z.object({
   compareAtPrice: money,
   preparationTime: optionalText(100),
   servings: optionalText(100),
-  status: z.enum([ProductStatus.DRAFT, ProductStatus.PUBLISHED]),
+  status: z.nativeEnum(ProductStatus),
+  pinned: z.boolean(),
   featured: z.boolean(),
   preorder: z.boolean(),
+  preorderMessage: optionalText(300),
+  expectedDispatch: optionalText(120),
+  publishAt: optionalDate,
+  unpublishAt: optionalDate,
   sortOrder: z.coerce.number().int("Sort order must be a whole number.").min(-9999).max(9999),
   seoTitle: optionalText(200),
   seoDescription: optionalText(600),
@@ -29,12 +35,14 @@ const productFormSchema = z.object({
   if (value.price && new Prisma.Decimal(value.price).isNegative()) context.addIssue({ code: "custom", path: ["price"], message: "Price cannot be negative." });
   if (value.compareAtPrice && new Prisma.Decimal(value.compareAtPrice).isNegative()) context.addIssue({ code: "custom", path: ["compareAtPrice"], message: "Compare-at price cannot be negative." });
   if (value.price && value.compareAtPrice && new Prisma.Decimal(value.compareAtPrice).lessThan(new Prisma.Decimal(value.price))) context.addIssue({ code: "custom", path: ["compareAtPrice"], message: "Compare-at price must be greater than or equal to price." });
+  if (value.unpublishAt && value.publishAt && value.unpublishAt <= value.publishAt) context.addIssue({ code: "custom", path: ["unpublishAt"], message: "Unpublish time must be after publish time." });
 });
 
 export type ProductInput = {
   name: string; slug: string; categoryId: string; shortDescription: string | null; description: string | null;
   imagePath: string; price: Prisma.Decimal | null; compareAtPrice: Prisma.Decimal | null; preparationTime: string | null;
-  servings: string | null; status: "DRAFT" | "PUBLISHED"; featured: boolean; preorder: boolean; sortOrder: number;
+  servings: string | null; status: ProductStatus; pinned: boolean; featured: boolean; preorder: boolean; preorderMessage: string | null;
+  expectedDispatch: string | null; publishAt: Date | null; unpublishAt: Date | null; sortOrder: number;
   seoTitle: string | null; seoDescription: string | null;
 };
 export type ProductFormState = { message?: string; errors?: Record<string, string[]> };
@@ -45,7 +53,9 @@ export function validateProductForm(formData: FormData): { success: true; data: 
     shortDescription: formData.get("shortDescription") ?? "", description: formData.get("description") ?? "",
     imagePath: formData.get("imagePath"), price: formData.get("price") ?? "", compareAtPrice: formData.get("compareAtPrice") ?? "",
     preparationTime: formData.get("preparationTime") ?? "", servings: formData.get("servings") ?? "", status: formData.get("status"),
-    featured: formData.get("featured") === "on", preorder: formData.get("preorder") === "on", sortOrder: formData.get("sortOrder") ?? "0",
+    pinned: formData.get("pinned") === "on", featured: formData.get("featured") === "on", preorder: formData.get("preorder") === "on",
+    preorderMessage: formData.get("preorderMessage") ?? "", expectedDispatch: formData.get("expectedDispatch") ?? "",
+    publishAt: formData.get("publishAt") ?? "", unpublishAt: formData.get("unpublishAt") ?? "", sortOrder: formData.get("sortOrder") ?? "0",
     seoTitle: formData.get("seoTitle") ?? "", seoDescription: formData.get("seoDescription") ?? "",
   });
   if (!parsed.success) {
