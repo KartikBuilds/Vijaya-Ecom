@@ -9,6 +9,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:16-alpine
@@ -92,6 +93,7 @@ jobs:
           exit 1
 
       - name: Browser and responsive QA
+        timeout-minutes: 15
         run: npm run test:e2e
 
       - name: Secret scan
