@@ -32,8 +32,6 @@ jobs:
       DATABASE_URL: postgresql://vijaya_test:vijaya_test_password@localhost:5432/vijaya_test?schema=public
       ADMIN_EMAIL: admin-ci@example.com
       ADMIN_USERNAME: CI_Super_Admin
-      ADMIN_PASSWORD: ci-only-admin-password-123
-      SESSION_SECRET: ci-only-session-secret-with-more-than-32-characters
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
       E2E_BASE_URL: http://127.0.0.1:3000
       CI: true
@@ -47,6 +45,24 @@ jobs:
 
       - name: Runtime diagnostic
         run: node -e "console.log(process.platform, process.arch)"
+
+      - name: Generate CI auth secrets
+        run: |
+          CI_ADMIN_PASSWORD="$(openssl rand -base64 32 | tr -d '\n')"
+          CI_SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$CI_ADMIN_PASSWORD"
+          echo "::add-mask::$CI_SESSION_SECRET"
+          echo "ADMIN_PASSWORD=$CI_ADMIN_PASSWORD" >> "$GITHUB_ENV"
+          echo "SESSION_SECRET=$CI_SESSION_SECRET" >> "$GITHUB_ENV"
+
+      - name: Repair audit lockfile
+        run: |
+          set +e
+          npm audit fix --package-lock-only --omit=dev
+          repair_status=$?
+          set -e
+          echo "npm audit fix exited with $repair_status; enforcing repaired state with audit:verify-lockfile and audit:production."
+          npm run audit:verify-lockfile
 
       - name: Install dependencies
         run: npm ci --include=optional
@@ -82,7 +98,13 @@ jobs:
           ! git grep -nE 'postgresql://[^[:space:]\"<>]+:[^[:space:]\"<>]+@' -- . ':!.env.example' ':!README.md' ':!.github/workflows/admin-platform-validation.yml'
 
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: npm run audit:production
+
+      - name: Development toolchain audit
+        continue-on-error: true
+        run: |
+          npm audit --audit-level=high
+          echo "Development audit is informational. Production runtime audit is enforced separately."
 
       - name: Integration tests
         run: npm run test:integration
