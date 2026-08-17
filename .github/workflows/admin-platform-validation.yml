@@ -96,7 +96,8 @@ jobs:
 
       - name: Secret scan
         run: |
-          git grep -n "Vijaya@2006" -- . && exit 1 || true
+          forbidden="Vijaya""@2006"
+          git grep -n "$forbidden" -- . && exit 1 || true
           git grep -n "postgresql://.*:.*@" -- . ':!.env.example' ':!README.md' ':!.github/workflows/admin-platform-validation.yml' && exit 1 || true
 
       - name: Upload Next logs
