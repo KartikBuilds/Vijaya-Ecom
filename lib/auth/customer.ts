@@ -6,7 +6,9 @@ import { CustomerStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 
 export const CUSTOMER_COOKIE = "vijaya_customer_session";
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const REMEMBER_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+const TOUCH_INTERVAL_MS = 5 * 60 * 1000;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function sessionSecret() {
@@ -48,9 +50,11 @@ export async function authenticateCustomer(emailValue: string, password: string)
   return customer;
 }
 
-export async function createCustomerSession(customerId: string, request?: Request) {
+export async function createCustomerSession(customerId: string, request?: Request, options: { remember?: boolean } = {}) {
+  const remember = options.remember ?? true;
+  const maxAge = remember ? REMEMBER_MAX_AGE_SECONDS : SESSION_MAX_AGE_SECONDS;
   const token = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + MAX_AGE_SECONDS * 1000);
+  const expiresAt = new Date(Date.now() + maxAge * 1000);
   await db.customerSession.create({
     data: {
       customerId,
@@ -61,10 +65,11 @@ export async function createCustomerSession(customerId: string, request?: Reques
     },
   });
   await db.customer.update({ where: { id: customerId }, data: { lastLoginAt: new Date() } });
-  (await cookies()).set(CUSTOMER_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: MAX_AGE_SECONDS, expires: expiresAt });
+  const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" };
+  (await cookies()).set(CUSTOMER_COOKIE, token, remember ? { ...cookieOptions, maxAge, expires: expiresAt } : cookieOptions);
 }
 
-export async function getCustomerSession() {
+export async function getCustomerSession(options: { touch?: boolean } = { touch: true }) {
   const token = (await cookies()).get(CUSTOMER_COOKIE)?.value;
   if (!token) return null;
   const session = await db.customerSession.findUnique({ where: { tokenHash: hashToken(token) }, include: { customer: true } });
@@ -72,8 +77,20 @@ export async function getCustomerSession() {
     if (session) await db.customerSession.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }
-  await db.customerSession.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } });
+  if (options.touch !== false && Date.now() - session.lastUsedAt.getTime() > TOUCH_INTERVAL_MS) {
+    await db.customerSession.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } });
+  }
   return { customer: session.customer, expiresAt: session.expiresAt };
+}
+
+export async function getPublicCustomerIdentity() {
+  const session = await getCustomerSession({ touch: false });
+  if (!session) return null;
+  return {
+    id: session.customer.id,
+    name: session.customer.name ?? session.customer.email ?? "Customer",
+    email: session.customer.email ?? "",
+  };
 }
 
 export async function destroyCustomerSession() {

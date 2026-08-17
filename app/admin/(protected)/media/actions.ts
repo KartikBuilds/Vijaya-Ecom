@@ -1,12 +1,14 @@
 "use server";
 
 import { MediaType } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { join } from "node:path";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/permissions";
 import { db } from "@/lib/db";
+import { isSafeUpload } from "@/lib/media/upload-validation";
 
 const schema = z.object({
   filename: z.string().trim().min(1).max(255),
@@ -15,6 +17,7 @@ const schema = z.object({
   altText: z.string().trim().max(300).transform((value) => value || null),
   usageNotes: z.string().trim().max(1000).transform((value) => value || null),
 });
+
 
 export async function createMediaAsset(form: FormData) {
   await requirePermission("media:write");
@@ -48,15 +51,14 @@ export async function uploadDevelopmentMedia(form: FormData) {
   if (process.env.NODE_ENV === "production" && !process.env.MEDIA_UPLOAD_PROVIDER) redirect("/admin/media?error=provider");
   const file = form.get("file");
   if (!(file instanceof File) || file.size < 1 || file.size > 5 * 1024 * 1024) redirect("/admin/media?error=upload");
-  const allowed = new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"], ["image/gif", ".gif"], ["image/svg+xml", ".svg"], ["video/mp4", ".mp4"]]);
-  const extension = allowed.get(file.type);
-  if (!extension) redirect("/admin/media?error=upload");
-  const safeBase = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/\.+/g, ".").slice(0, 80) || `media${extension}`;
-  const finalName = `${Date.now()}-${safeBase.endsWith(extension) || extname(safeBase) ? safeBase : `${safeBase}${extension}`}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const detected = isSafeUpload(buffer, file.type);
+  if (!detected) redirect("/admin/media?error=upload");
+  const finalName = `${randomUUID()}${detected.extension}`;
   const uploadDir = join(process.cwd(), "public", "uploads");
   await mkdir(uploadDir, { recursive: true });
-  await writeFile(join(uploadDir, finalName), Buffer.from(await file.arrayBuffer()), { flag: "wx" });
+  await writeFile(join(uploadDir, finalName), buffer, { flag: "wx" });
   const url = `/uploads/${finalName}`;
-  await db.mediaAsset.create({ data: { filename: file.name, url, type: file.type.startsWith("video/") ? MediaType.VIDEO : MediaType.IMAGE, sizeBytes: file.size, provider: "local-development", usageNotes: "Local development upload. Configure durable storage for production." } });
+  await db.mediaAsset.create({ data: { filename: file.name.slice(0, 255), url, type: detected.type, sizeBytes: file.size, provider: "local-development", usageNotes: "Local development upload. Configure durable storage for production." } });
   redirect("/admin/media?success=uploaded");
 }

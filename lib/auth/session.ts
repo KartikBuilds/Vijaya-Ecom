@@ -32,7 +32,7 @@ export async function createAdminSession(userId: string, request?: Request) {
   });
   await db.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: SESSION_MAX_AGE_SECONDS, expires: expiresAt });
+  cookieStore.set(ADMIN_COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/admin", maxAge: SESSION_MAX_AGE_SECONDS, expires: expiresAt });
 }
 
 export async function getAdminSession(): Promise<{ user: User; expiresAt: Date } | null> {
@@ -66,7 +66,7 @@ export async function destroyAdminSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_COOKIE)?.value;
   if (token) await db.adminSession.deleteMany({ where: { tokenHash: hashToken(token) } });
-  cookieStore.set(ADMIN_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0, expires: new Date(0) });
+  cookieStore.set(ADMIN_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/admin", maxAge: 0, expires: new Date(0) });
 }
 
 export async function destroyOtherAdminSessions(userId: string) {
@@ -78,5 +78,5 @@ export async function destroyOtherAdminSessions(userId: string) {
 export async function destroyAllAdminSessions(userId: string) {
   await db.adminSession.deleteMany({ where: { userId } });
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0, expires: new Date(0) });
+  cookieStore.set(ADMIN_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/admin", maxAge: 0, expires: new Date(0) });
 }

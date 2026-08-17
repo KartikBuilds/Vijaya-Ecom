@@ -6,6 +6,10 @@ on:
     branches: [main, codex/admin-recovery-validation]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -69,6 +73,17 @@ jobs:
           npm run test:validation
           git diff --check
 
+      - name: Secret scan
+        run: |
+          ! git ls-files | grep -E '(^|/)\.env($|\.local|\.production|\.development|\.test)'
+          secret_pattern='g[h]p_|github[_]pat_|[-][-][-][-][-]BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY[-][-][-][-][-]'
+          ! git grep -nE "$secret_pattern" -- .
+          ! git grep -nE '(DATABASE_URL|SESSION_SECRET|ADMIN_PASSWORD|POSTGRES_PASSWORD)=.{8,}' -- . ':!.env.example' ':!README.md' ':!.github/workflows/admin-platform-validation.yml'
+          ! git grep -nE 'postgresql://[^[:space:]\"<>]+:[^[:space:]\"<>]+@' -- . ':!.env.example' ':!README.md' ':!.github/workflows/admin-platform-validation.yml'
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Integration tests
         run: npm run test:integration
 
@@ -95,12 +110,6 @@ jobs:
       - name: Browser and responsive QA
         timeout-minutes: 15
         run: npm run test:e2e
-
-      - name: Secret scan
-        run: |
-          forbidden="Vijaya""@2006"
-          git grep -n "$forbidden" -- . && exit 1 || true
-          git grep -n "postgresql://.*:.*@" -- . ':!.env.example' ':!README.md' ':!.github/workflows/admin-platform-validation.yml' && exit 1 || true
 
       - name: Upload Next logs
         if: failure()

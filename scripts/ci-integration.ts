@@ -2,14 +2,20 @@ import assert from "node:assert/strict";
 import { Prisma, ProductStatus, RecipeStatus, ReviewStatus, Role, CustomerStatus, UgcStatus, ContentStatus, BannerPlacement, MediaType, NotificationType, AnalyticsEventType, FeedbackCategory, FeedbackStatus } from "@prisma/client";
 import { compare, hash } from "bcryptjs";
 import { db } from "../lib/db";
+import { customerSignupSchema } from "../lib/auth/customer-validation";
+import { isSafeUpload } from "../lib/media/upload-validation";
 
 const now = new Date();
 const past = new Date(now.getTime() - 60_000);
 const future = new Date(now.getTime() + 60 * 60_000);
 const email = (prefix: string) => `${prefix}-${Date.now()}@example.com`;
 
-function eligible(where: { publishAt: Date | null; unpublishAt: Date | null }) {
+function scheduleEligible(where: { publishAt: Date | null; unpublishAt: Date | null }) {
   return (!where.publishAt || where.publishAt <= now) && (!where.unpublishAt || where.unpublishAt > now);
+}
+
+function publicStatusEligible(status: string) {
+  return status === "PUBLISHED" || status === "SCHEDULED";
 }
 
 async function main() {
@@ -32,6 +38,12 @@ async function main() {
   assert.ok(categories.length >= 2, "seed should create categories");
   assert.ok(products.length >= 7, "seed should create initial Vijaya products");
   const category = categories[0];
+
+  assert.equal(customerSignupSchema.safeParse({ name: "", email: "bad", mobile: "", password: "short", confirm: "different" }).success, false);
+  assert.equal(customerSignupSchema.safeParse({ name: "Terms Missing", email: "terms@example.com", mobile: "", password: "CustomerPass123!", confirm: "CustomerPass123!" }).success, false);
+  const signup = customerSignupSchema.safeParse({ name: " Valid Customer ", email: "VALID@EXAMPLE.COM", mobile: "+91 98765 43210", password: "CustomerPass123!", confirm: "CustomerPass123!", terms: "on" });
+  assert.equal(signup.success, true);
+  if (signup.success) assert.equal(signup.data.email, "valid@example.com");
 
   const customerPassword = "CustomerPass123!";
   const customer = await db.customer.create({
@@ -82,9 +94,13 @@ async function main() {
       seoDescription: "CI Product SEO description",
     },
   });
-  assert.equal(eligible(product), true);
-  const scheduledProduct = await db.product.create({ data: { name: "CI Scheduled Product", slug: `ci-scheduled-${Date.now()}`, categoryId: category.id, imagePath: product.imagePath, status: ProductStatus.PUBLISHED, publishAt: future } });
-  assert.equal(eligible(scheduledProduct), false);
+  assert.equal(publicStatusEligible(product.status) && scheduleEligible(product), true);
+  const scheduledProduct = await db.product.create({ data: { name: "CI Scheduled Product", slug: `ci-scheduled-${Date.now()}`, categoryId: category.id, imagePath: product.imagePath, status: ProductStatus.SCHEDULED, publishAt: future } });
+  assert.equal(publicStatusEligible(scheduledProduct.status) && scheduleEligible(scheduledProduct), false);
+  const eligibleScheduledProduct = await db.product.create({ data: { name: "CI Eligible Scheduled Product", slug: `ci-scheduled-live-${Date.now()}`, categoryId: category.id, imagePath: product.imagePath, status: ProductStatus.SCHEDULED, publishAt: past } });
+  assert.equal(publicStatusEligible(eligibleScheduledProduct.status) && scheduleEligible(eligibleScheduledProduct), true);
+  const expiredScheduledProduct = await db.product.create({ data: { name: "CI Expired Scheduled Product", slug: `ci-scheduled-expired-${Date.now()}`, categoryId: category.id, imagePath: product.imagePath, status: ProductStatus.SCHEDULED, publishAt: past, unpublishAt: past } });
+  assert.equal(publicStatusEligible(expiredScheduledProduct.status) && scheduleEligible(expiredScheduledProduct), false);
   await db.product.update({ where: { id: product.id }, data: { status: ProductStatus.HIDDEN } });
   await db.product.update({ where: { id: product.id }, data: { status: ProductStatus.ARCHIVED } });
   await db.product.update({ where: { id: product.id }, data: { status: ProductStatus.DRAFT } });
@@ -111,7 +127,7 @@ async function main() {
       seoDescription: "CI Recipe SEO description",
     },
   });
-  assert.equal(recipe.status, RecipeStatus.PUBLISHED);
+  assert.equal(publicStatusEligible(recipe.status) && scheduleEligible(recipe), true);
 
   const review = await db.review.create({
     data: {
@@ -135,11 +151,14 @@ async function main() {
   await db.userGeneratedContent.update({ where: { id: ugc.id }, data: { status: UgcStatus.APPROVED, featured: true, pinned: true } });
   await db.userGeneratedContent.update({ where: { id: ugc.id }, data: { status: UgcStatus.HIDDEN } });
 
-  const banner = await db.banner.create({ data: { title: "CI Banner", placement: BannerPlacement.HOME_PROMO, status: ContentStatus.PUBLISHED, featured: true, pinned: true, publishAt: past, unpublishAt: future } });
-  assert.equal(eligible(banner), true);
+  const banner = await db.banner.create({ data: { title: "CI Banner", placement: BannerPlacement.HOME_PROMO, status: ContentStatus.SCHEDULED, featured: true, pinned: true, publishAt: past, unpublishAt: future } });
+  assert.equal(publicStatusEligible(banner.status) && scheduleEligible(banner), true);
 
   const media = await db.mediaAsset.create({ data: { filename: "ci-product.jpg", url: product.imagePath, type: MediaType.IMAGE, provider: "ci", usageNotes: "CI reference test" } });
   assert.ok(await db.product.count({ where: { imagePath: media.url } }), "media in-use reference should be detectable");
+  assert.equal(isSafeUpload(Buffer.from([0xff, 0xd8, 0xff, 0xdb]), "image/jpeg")?.extension, ".jpg");
+  assert.equal(isSafeUpload(Buffer.from("<svg><script>alert(1)</script></svg>"), "image/svg+xml"), null);
+  assert.equal(isSafeUpload(Buffer.from("<html></html>"), "image/png"), null);
 
   const feedback = await db.feedback.create({ data: { category: FeedbackCategory.GENERAL_INQUIRY, status: FeedbackStatus.NEW, subject: "CI Feedback", message: "CI message", internalNotes: "private" } });
   await db.feedback.update({ where: { id: feedback.id }, data: { status: FeedbackStatus.IN_PROGRESS } });

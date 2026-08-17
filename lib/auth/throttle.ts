@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -12,37 +12,56 @@ function secret() {
   return value;
 }
 
-function keyHash(identifier: string, request: Request) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  return createHmac("sha256", secret()).update(`${identifier.trim().toLowerCase()}|${ip}`).digest("hex");
+function digest(value: string) {
+  return createHmac("sha256", secret()).update(value).digest("hex");
+}
+
+function normalizedIdentifier(identifier: string) {
+  return identifier.trim().toLowerCase();
+}
+
+function networkKey(request: Request) {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+function throttleKeys(scope: "admin" | "customer", identifier: string, request: Request) {
+  return [
+    { scope: `${scope}:identifier`, keyHash: digest(normalizedIdentifier(identifier)) },
+    { scope: `${scope}:network`, keyHash: digest(networkKey(request)) },
+  ];
 }
 
 export async function assertLoginAllowed(scope: "admin" | "customer", identifier: string, request: Request) {
   const now = new Date();
-  const record = await db.authThrottle.findUnique({ where: { scope_keyHash: { scope, keyHash: keyHash(identifier, request) } } });
-  if (record?.blockedUntil && record.blockedUntil > now) return false;
+  const records = await db.authThrottle.findMany({ where: { OR: throttleKeys(scope, identifier, request) } });
+  if (records.some((record) => record.blockedUntil && record.blockedUntil > now)) return false;
   return true;
 }
 
 export async function recordLoginFailure(scope: "admin" | "customer", identifier: string, request: Request) {
   const now = new Date();
-  const hash = keyHash(identifier, request);
-  const existing = await db.authThrottle.findUnique({ where: { scope_keyHash: { scope, keyHash: hash } } });
-  if (!existing || now.getTime() - existing.windowStart.getTime() > WINDOW_MS) {
-    await db.authThrottle.upsert({
-      where: { scope_keyHash: { scope, keyHash: hash } },
-      update: { attempts: 1, windowStart: now, blockedUntil: null, lastAttemptAt: now },
-      create: { scope, keyHash: hash, attempts: 1, windowStart: now, lastAttemptAt: now },
-    });
-    return;
-  }
-  const attempts = existing.attempts + 1;
-  await db.authThrottle.update({
-    where: { id: existing.id },
-    data: { attempts, lastAttemptAt: now, blockedUntil: attempts >= MAX_ATTEMPTS ? new Date(now.getTime() + BLOCK_MS) : existing.blockedUntil },
-  });
+  const blockUntil = new Date(now.getTime() + BLOCK_MS);
+  await db.$transaction(throttleKeys(scope, identifier, request).map((key) => db.$executeRaw`
+    INSERT INTO "AuthThrottle" ("id", "scope", "keyHash", "attempts", "windowStart", "lastAttemptAt", "blockedUntil")
+    VALUES (${randomUUID()}, ${key.scope}, ${key.keyHash}, 1, ${now}, ${now}, NULL)
+    ON CONFLICT ("scope", "keyHash") DO UPDATE SET
+      "attempts" = CASE
+        WHEN ${now} - "AuthThrottle"."windowStart" > (${WINDOW_MS} * interval '1 millisecond') THEN 1
+        ELSE "AuthThrottle"."attempts" + 1
+      END,
+      "windowStart" = CASE
+        WHEN ${now} - "AuthThrottle"."windowStart" > (${WINDOW_MS} * interval '1 millisecond') THEN ${now}
+        ELSE "AuthThrottle"."windowStart"
+      END,
+      "blockedUntil" = CASE
+        WHEN ${now} - "AuthThrottle"."windowStart" > (${WINDOW_MS} * interval '1 millisecond') THEN NULL
+        WHEN "AuthThrottle"."attempts" + 1 >= ${MAX_ATTEMPTS} THEN ${blockUntil}
+        ELSE "AuthThrottle"."blockedUntil"
+      END,
+      "lastAttemptAt" = ${now}
+  `));
 }
 
 export async function clearLoginFailures(scope: "admin" | "customer", identifier: string, request: Request) {
-  await db.authThrottle.deleteMany({ where: { scope, keyHash: keyHash(identifier, request) } });
+  await db.authThrottle.deleteMany({ where: { OR: throttleKeys(scope, identifier, request).filter((key) => key.scope.endsWith(":identifier")) } });
 }

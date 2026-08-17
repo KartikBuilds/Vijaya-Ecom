@@ -58,6 +58,13 @@ async function main() {
       await expect(page.locator("body")).toBeVisible();
     }
 
+    log("forged localStorage auth ignored");
+    await page.evaluate(() => localStorage.setItem("vijaya_user", JSON.stringify({ name: "Forged Customer", email: "forged@example.com" })));
+    await gotoClean(page, "/");
+    await expectText(page, "Login / Sign Up");
+    const forgedVisible = await page.getByText("Forged Customer").count();
+    assert.equal(forgedVisible, 0, "forged localStorage customer identity must not render as authenticated");
+
     log("customer signup");
     await page.goto(`${baseURL}/signup`, { waitUntil: "domcontentloaded", timeout: navigationTimeout });
     await page.getByLabel("Full name").fill("E2E Customer");
@@ -68,10 +75,12 @@ async function main() {
     await page.getByLabel(/I accept/).check();
     await page.getByRole("button", { name: "Create Account" }).click();
     await page.waitForURL(`${baseURL}/`, { timeout: navigationTimeout });
+    await expectText(page, "E2E");
 
     log("customer logout");
-    await page.goto(`${baseURL}/logout`, { waitUntil: "domcontentloaded", timeout: navigationTimeout });
-    await page.waitForURL(`${baseURL}/`, { timeout: navigationTimeout });
+    await page.evaluate(async () => { await fetch("/logout", { method: "POST" }); });
+    await page.goto(`${baseURL}/`, { waitUntil: "domcontentloaded", timeout: navigationTimeout });
+    await expectText(page, "Login / Sign Up");
 
     log("customer login");
     await page.goto(`${baseURL}/login`, { waitUntil: "domcontentloaded", timeout: navigationTimeout });
@@ -79,6 +88,7 @@ async function main() {
     await page.getByLabel("Password", { exact: true }).fill(customerPassword);
     await page.getByRole("button", { name: "Login" }).click();
     await page.waitForURL(`${baseURL}/`, { timeout: navigationTimeout });
+    await expectText(page, "E2E");
 
     log("product search and cart");
     await page.goto(`${baseURL}/products`, { waitUntil: "domcontentloaded", timeout: navigationTimeout });
@@ -129,6 +139,10 @@ function expect(locator) {
       assert.equal(await locator.count() > 0, true);
     },
   };
+}
+
+async function expectText(page, text) {
+  assert.ok(await page.getByText(text).count() > 0, `expected visible text: ${text}`);
 }
 
 main().catch((error) => {

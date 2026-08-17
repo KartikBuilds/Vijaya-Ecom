@@ -15,6 +15,6 @@ export async function POST(request: Request) {
     return NextResponse.redirect(redirectTo, 303);
   }
   await clearLoginFailures("customer", normalizeCustomerEmail(email), request);
-  await createCustomerSession(customer.id, request);
+  await createCustomerSession(customer.id, request, { remember: form.get("remember") === "on" });
   return NextResponse.redirect(new URL("/", request.url), 303);
 }

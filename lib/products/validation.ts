@@ -1,5 +1,6 @@
 import { Prisma, ProductStatus } from "@prisma/client";
 import { z } from "zod";
+import { validateScheduleWindow } from "@/lib/content/visibility";
 
 const optionalText = (maximum: number) => z.string().trim().max(maximum).transform((value) => value || null);
 const optionalDate = z.string().trim().refine((value) => !value || !Number.isNaN(Date.parse(value)), "Enter a valid date.").transform((value) => value ? new Date(value) : null);
@@ -35,7 +36,7 @@ const productFormSchema = z.object({
   if (value.price && new Prisma.Decimal(value.price).isNegative()) context.addIssue({ code: "custom", path: ["price"], message: "Price cannot be negative." });
   if (value.compareAtPrice && new Prisma.Decimal(value.compareAtPrice).isNegative()) context.addIssue({ code: "custom", path: ["compareAtPrice"], message: "Compare-at price cannot be negative." });
   if (value.price && value.compareAtPrice && new Prisma.Decimal(value.compareAtPrice).lessThan(new Prisma.Decimal(value.price))) context.addIssue({ code: "custom", path: ["compareAtPrice"], message: "Compare-at price must be greater than or equal to price." });
-  if (value.unpublishAt && value.publishAt && value.unpublishAt <= value.publishAt) context.addIssue({ code: "custom", path: ["unpublishAt"], message: "Unpublish time must be after publish time." });
+  for (const issue of validateScheduleWindow(value)) context.addIssue({ code: "custom", path: [issue.path], message: issue.message });
 });
 
 export type ProductInput = {

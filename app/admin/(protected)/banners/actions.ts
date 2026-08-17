@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { writeAuditLog } from "@/lib/admin/audit";
 import { requirePermission } from "@/lib/auth/permissions";
+import { validateScheduleWindow } from "@/lib/content/visibility";
 import { db } from "@/lib/db";
 
 const optional = (max: number) => z.string().trim().max(max).transform((value) => value || null);
@@ -21,6 +22,8 @@ const schema = z.object({
   featured: z.boolean(),
   pinned: z.boolean(),
   sortOrder: z.coerce.number().int().min(-9999).max(9999),
+}).superRefine((value, context) => {
+  for (const issue of validateScheduleWindow(value)) context.addIssue({ code: "custom", path: [issue.path], message: issue.message });
 });
 
 export async function createBanner(form: FormData) {
