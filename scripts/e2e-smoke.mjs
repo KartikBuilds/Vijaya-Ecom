@@ -63,8 +63,8 @@ async function main() {
     await page.getByLabel("Full name").fill("E2E Customer");
     await page.getByLabel("Email address").fill(customerEmail);
     await page.getByLabel("Mobile number").fill("9876543210");
-    await page.getByLabel("Password").fill(customerPassword);
-    await page.getByLabel("Confirm password").fill(customerPassword);
+    await page.getByLabel("Password", { exact: true }).fill(customerPassword);
+    await page.getByLabel("Confirm password", { exact: true }).fill(customerPassword);
     await page.getByLabel(/I accept/).check();
     await page.getByRole("button", { name: "Create Account" }).click();
     await page.waitForURL(`${baseURL}/`, { timeout: navigationTimeout });
@@ -76,7 +76,7 @@ async function main() {
     log("customer login");
     await page.goto(`${baseURL}/login`, { waitUntil: "domcontentloaded", timeout: navigationTimeout });
     await page.getByLabel("Email address").fill(customerEmail);
-    await page.getByLabel("Password").fill(customerPassword);
+    await page.getByLabel("Password", { exact: true }).fill(customerPassword);
     await page.getByRole("button", { name: "Login" }).click();
     await page.waitForURL(`${baseURL}/`, { timeout: navigationTimeout });
 
@@ -94,7 +94,7 @@ async function main() {
 
     log("admin login");
     await page.getByLabel("Username or Email").fill(adminUsername);
-    await page.getByLabel("Password").fill(adminPassword);
+    await page.getByLabel("Password", { exact: true }).fill(adminPassword);
     await page.getByRole("button", { name: "Sign In" }).click();
     await page.waitForURL(`${baseURL}/admin`, { timeout: navigationTimeout });
 
