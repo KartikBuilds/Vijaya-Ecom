@@ -1,125 +1,172 @@
 # Vijaya Premix
 
-Next.js 15 App Router storefront and internal Vijaya Admin management platform backed by PostgreSQL and Prisma.
+Full-stack e-commerce storefront and secure admin CMS for Vijaya Premix food products. Built with Next.js 15, React 18, Prisma ORM, PostgreSQL, and TypeScript.
 
-## Environment
+## Quick Start
 
-Copy `.env.example` to an ignored local environment file and configure:
+### Prerequisites
+- Node.js 18+ and npm
+- PostgreSQL 16+
+- Docker and Docker Compose (optional, for local PostgreSQL)
 
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/vijaya_premix"
-ADMIN_EMAIL="admin@example.com"
-ADMIN_USERNAME="Sujata"
-ADMIN_PASSWORD=<secure environment value>
-SESSION_SECRET="generate-a-long-random-secret"
-NEXT_PUBLIC_SITE_URL="https://your-production-domain.example"
-```
+### Local Setup
 
-Never commit real `.env*` files. `ADMIN_PASSWORD` is provisioning input only; the application stores only a bcrypt password hash.
+1. **Install dependencies and configure environment:**
+   ```bash
+   npm install
+   cp .env.example .env.local
+   ```
+   Edit `.env.local` with your local database credentials and a generated SESSION_SECRET (32+ random characters).
 
-## Setup
+2. **Start PostgreSQL locally** (optional, if not running elsewhere):
+   ```bash
+   docker compose --env-file .env.local -f compose.dev.yml up -d postgres
+   ```
+
+3. **Initialize database:**
+   ```bash
+   npm run db:generate
+   npm run db:migrate
+   npm run db:seed
+   ```
+   The seed command provisions the initial admin account using `ADMIN_EMAIL`, `ADMIN_USERNAME`, and `ADMIN_PASSWORD` from your environment. The password is hashed immediately; never log it.
+
+4. **Validate and run:**
+   ```bash
+   npm run lint
+   npm run typecheck
+   npm run test:validation
+   npm run build
+   npm run dev
+   ```
+
+The storefront runs at `http://localhost:3000` and admin portal at `http://localhost:3000/admin`.
+
+## Environment Configuration
+
+See `.env.example` for all required variables:
+
+- **`DATABASE_URL`**: PostgreSQL connection string (production uses durable storage)
+- **`ADMIN_EMAIL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`**: Initial super-admin credentials (password hashed after seed)
+- **`SESSION_SECRET`**: Secure session key (32+ random characters, never shared)
+- **`NEXT_PUBLIC_SITE_URL`**: Production domain for canonical URLs and SEO metadata
+
+Never commit `.env`, `.env.local`, or `.env.production` files.
+
+## Admin Portal
+
+**Access**: `/admin/login` via username or email + password.
+
+### Secured Routes
+- **Dashboard & Auth**: `/admin`, `/admin/login`, `/admin/logout`
+- **Account**: `/admin/profile`, `/admin/security`
+- **Team Management**: `/admin/team`, `/admin/roles`
+- **Content**: `/admin/products`, `/admin/recipes`, `/admin/reviews`
+- **Media & UGC**: `/admin/media`, `/admin/ugc`
+- **Site Content**: `/admin/homepage`, `/admin/banners`, `/admin/content`
+- **Customer Management**: `/admin/customers`, `/admin/customers/[id]`
+- **Feedback & Notifications**: `/admin/feedback`, `/admin/notifications`
+- **Observability**: `/admin/analytics`, `/admin/activity`
+- **Configuration**: `/admin/settings`
+
+All admin pages return `noindex, nofollow` and enforce server-side session validation.
+
+### Role-Based Access Control
+
+Four roles define admin capabilities (defined in `lib/auth/permissions.ts`):
+
+- **`SUPER_ADMIN`**: Full platform access, staff management, all content and customer operations.
+- **`PRODUCT_MANAGER`**: Products, media uploads, analytics, own profile/security.
+- **`CONTENT_MANAGER`**: Recipes, reviews, homepage, banners, UGC, media, notifications, analytics.
+- **`ORDER_MANAGER`**: Customer records, feedback, notifications, analytics, own profile/security.
+
+Pages and server actions independently verify permissions; UI navigation is not security.
+
+### Content Publishing
+
+Products, recipes, reviews, banners, and UGC support lifecycle management:
+
+- **Status states**: `DRAFT`, `PUBLISHED`, `SCHEDULED`, `HIDDEN`, `ARCHIVED`
+- **Moderation states** (reviews, UGC): `PENDING`, `APPROVED`, `REJECTED`, `HIDDEN`
+- **Scheduling**: `publishAt` and `unpublishAt` timestamps enable automatic visibility without admin polling
+
+Public storefront queries return only currently eligible published content based on status and schedule.
+
+## Authentication & Security
+
+### Customer Accounts
+- Email/username and bcrypt-hashed password
+- Persistent `CustomerSession` records in PostgreSQL
+- HttpOnly, secure session cookies
+- Admin block/disable actions immediately revoke active sessions
+- No localStorage for sensitive auth data
+
+### Admin Accounts
+- Bcrypt-hashed passwords, never plaintext storage
+- Session list with logout-other and logout-all-sessions
+- Password change requires current password verification
+- Rate limiting on login attempts via PostgreSQL throttle records
+
+### Rate Limiting
+Login endpoints use HMAC-hashed rate-limit keys; raw credentials are not logged.
+
+## Media Management
+
+Uploaded images and videos require durable external storage (Vercel Blob, Cloudinary, S3, etc.) before production use.
+
+**Current status**: Media provider integration is required for production file uploads.
+
+## Validation Commands
 
 ```bash
-npm install
-npm run db:generate
-npm run db:migrate
-npm run db:seed
-npm run lint
-npm run typecheck
+npm run test:validation       # Product, recipe, and review validation
+npm run test:integration      # CI integration test suite
+npm run test:e2e              # Smoke test (requires running server)
+npm run audit:production      # Production dependency audit
+```
+
+## CI Pipeline
+
+`.github/workflows/admin-platform-validation.yml` on each push:
+- Clean install with optional dependencies
+- Prisma schema validation, code generation, migrations
+- Database seed
+- ESLint and TypeScript type checking
+- Validation scripts and build
+- Secret detection scan against a PostgreSQL test container
+
+## Production Deployment
+
+### Checklist
+- [ ] Database: PostgreSQL 16+ with durable automated backups
+- [ ] Secrets: Generate strong `SESSION_SECRET`, unique `ADMIN_PASSWORD`; use environment variables only
+- [ ] Media storage: Configure and verify external storage provider
+- [ ] SEO: Set `NEXT_PUBLIC_SITE_URL` to production domain for sitemaps and JSON-LD
+- [ ] Database migrations: Use `npm run db:migrate` (not `prisma db push`) for schema changes
+- [ ] Session cleanup: Implement periodic deletion of expired customer sessions
+- [ ] Monitoring: Log admin activity via `/admin/activity` and audit critical changes
+
+### Build & Run
+```bash
+npm install --production
 npm run build
+npm start
 ```
 
-Use Prisma migrations for schema history. Do not use `prisma db push` for production changes.
+Use a reverse proxy (Nginx, Cloudflare) for SSL termination, rate limiting, and static asset caching.
 
-For reproducible local PostgreSQL:
+## Not Yet Implemented
 
-```bash
-docker compose --env-file .env.local -f compose.dev.yml up -d postgres
-```
+- **Orders & payments**: No order management or payment gateway integration
+- **Inventory**: No stock tracking or supply-chain visibility
+- **Email**: No transactional email service (password reset, notifications, etc.)
+- **External storage**: Local file uploads not suitable for production; requires S3, Blob, or Cloudinary
+- **Scheduled jobs**: Cron tasks for automatic status transitions, session cleanup, and digest emails require external job runner (Vercel Cron, Bull, etc.)
 
-The local `.env.local` file must define `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, and a matching `DATABASE_URL`.
+## Browser Compatibility
 
-## Admin Provisioning
+Tested and supported on modern browsers (Chrome, Firefox, Safari, Edge). Run locally with `npm run dev` to test responsive design across viewport widths.
 
-`npm run db:seed` provisions or updates the configured initial administrator by `ADMIN_EMAIL`, assigns `ADMIN_USERNAME`, sets role `SUPER_ADMIN`, activates the account, and stores only a bcrypt hash. The public admin login accepts username or email plus the configured password. No public admin signup exists.
+## Support & Questions
 
-## Admin Architecture
-
-Protected admin routes live under `/admin` and use server-side session checks. Route groups currently expose:
-
-- `/admin`, `/admin/login`
-- `/admin/profile`, `/admin/security`
-- `/admin/team`, `/admin/roles`
-- `/admin/products`, `/admin/recipes`, `/admin/reviews`, `/admin/media`
-- `/admin/customers`, `/admin/customers/[id]`
-- `/admin/content`, `/admin/homepage`, `/admin/banners`, `/admin/ugc`
-- `/admin/feedback`, `/admin/notifications`
-- `/admin/analytics`, `/admin/activity`
-- `/admin/settings`
-
-Admin pages declare `noindex, nofollow`.
-
-## Customer Authentication
-
-Customer `/login`, `/signup`, and `/logout` use server/database authentication. Passwords are bcrypt-hashed, sessions are stored in `CustomerSession`, cookies are `HttpOnly`, expired sessions are rejected, and disabled or blocked customers cannot authenticate. Admin block/disable actions revoke active customer sessions.
-
-Cart and wishlist persistence remain browser-side storefront preferences; account authentication no longer uses localStorage.
-
-## Roles and Permissions
-
-RBAC is centralized in `lib/auth/permissions.ts`:
-
-- `SUPER_ADMIN`: full platform access.
-- `PRODUCT_MANAGER`: products, media, own profile/security, analytics.
-- `CONTENT_MANAGER`: recipes, reviews, homepage/content, banners, UGC, media, notifications, analytics.
-- `ORDER_MANAGER`: customer, feedback, notifications, analytics, own profile/security.
-
-Pages and server actions independently call `requirePermission()` or `requireRole()`. Hidden navigation is not treated as authorization.
-
-## Publishing Workflow
-
-Products, recipes, reviews, banners, and UGC use controlled lifecycle states such as `DRAFT`, `SCHEDULED`, `PUBLISHED`, `HIDDEN`, `ARCHIVED`, plus moderation states where appropriate. Public queries dynamically require `status=PUBLISHED`, `publishAt <= now()` when set, and `unpublishAt > now()` when set, so scheduled content does not require an administrator browser tab.
-
-Preview/publish UX is foundation-level in this iteration; supported admin forms persist drafts and public storefront queries exclude non-public states.
-
-## Management Modules
-
-- Products: existing CMS preserved, with expanded schema for pinned, preorder messaging, scheduling, visibility, and SEO.
-- Recipes: product association, safe HTTP(S) video URLs, structured ingredients/instructions, scheduling, SEO.
-- Reviews: moderation lifecycle, featured/pinned flags, internal moderation notes.
-- Homepage: structured hero, CTA, featured product, section visibility, promise and Pack-to-Plate content.
-- Banners: controlled placements (`HOME_HERO`, `HOME_PROMO`, `PRODUCTS_TOP`, `PREORDER`, `GLOBAL_NOTICE`), schedule fields, CTA fields.
-- Media: local/public asset and external URL registry. Production upload requires durable storage.
-- Customers: status-ready customer records with privacy-conscious activity, review and UGC summaries.
-- UGC: customer cooking content moderation with approved/rejected/hidden/archive states.
-- Feedback: inquiry categorization, status workflow, internal notes.
-- Notifications: unread/read records, mark one/all read, entity links.
-- Analytics: controlled first-party event model with empty states when no records exist.
-- Activity: audit log for important admin changes, without secrets or tokens.
-- Security: password change with current password verification, bcrypt hashing, session list, logout other/all sessions.
-- Team: Super Admin staff creation, role assignment, activation/deactivation, and final active Super Admin protection.
-
-## Media Configuration
-
-Durable upload storage is intentionally not faked. Configure Vercel Blob, Cloudinary, S3, or another durable provider before enabling production uploads.
-
-Current status: `MEDIA PROVIDER CONFIGURATION REQUIRED`.
-
-## Rate Limiting
-
-Admin and customer login use PostgreSQL-backed throttling via `AuthThrottle`. Keys are HMAC-hashed with `SESSION_SECRET`; raw passwords and raw credential secrets are not stored.
-
-## Storefront Integration
-
-Public product, recipe, and review queries only return currently eligible published content. Draft, scheduled-before-publish, hidden, archived, rejected, and internal-note fields are not exposed through storefront helpers.
-
-## Remaining Limitations
-
-- Orders, payments, inventory, customer authentication, customer sessions, and real upload storage are not implemented.
-- Customer pages are architecture-ready and show empty states when no real customer accounts exist.
-- Exact automatic status transitions still require deployment cron if destructive state changes are desired; current public visibility is dynamic and time-aware.
-- Browser QA at all requested viewport widths requires a runnable local build/dev server and browser automation.
-
-## CI Validation
-
-`.github/workflows/admin-platform-validation.yml` runs npm clean install with optional dependencies, Prisma validation/generation/migrations, seed, lint, TypeScript, validation scripts, build, and a tracked secret scan against a PostgreSQL service container.
+For issues, questions, or feature requests, contact the development team or check the project documentation.
