@@ -7,3 +7,4 @@ out/
 !.env.example
 public/uploads/*
 !public/uploads/.gitkeep
+.vercel
