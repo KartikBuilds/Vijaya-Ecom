@@ -9,5 +9,5 @@ export async function POST(request: Request) {
   } catch {
     console.error("Admin logout encountered a server error.");
   }
-  return NextResponse.redirect(new URL("/admin/login", request.url), 303);
+  return NextResponse.redirect(new URL("/admin/login", request.headers.get("origin") || request.url), 303);
 }

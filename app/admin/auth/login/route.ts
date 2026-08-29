@@ -9,17 +9,17 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const identifier = String(formData.get("identifier") ?? formData.get("email") ?? "");
-    if (!await assertLoginAllowed("admin", identifier, request)) return NextResponse.redirect(new URL("/admin/login?error=invalid", request.url), 303);
+    if (!await assertLoginAllowed("admin", identifier, request)) return NextResponse.redirect(new URL("/admin/login?error=invalid", request.headers.get("origin") || request.url), 303);
     const user = await authenticateAdmin(identifier, String(formData.get("password") ?? ""));
     if (!user) {
       await recordLoginFailure("admin", identifier, request);
-      return NextResponse.redirect(new URL("/admin/login?error=invalid", request.url), 303);
+      return NextResponse.redirect(new URL("/admin/login?error=invalid", request.headers.get("origin") || request.url), 303);
     }
     await clearLoginFailures("admin", identifier, request);
     await createAdminSession(user.id, request);
-    return NextResponse.redirect(new URL("/admin", request.url), 303);
+    return NextResponse.redirect(new URL("/admin", request.headers.get("origin") || request.url), 303);
   } catch {
     console.error("Admin login failed due to a server error.");
-    return NextResponse.redirect(new URL("/admin/login?error=invalid", request.url), 303);
+    return NextResponse.redirect(new URL("/admin/login?error=invalid", request.headers.get("origin") || request.url), 303);
   }
 }

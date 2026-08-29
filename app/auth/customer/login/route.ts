@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!isSameOriginMutation(request)) return new NextResponse("Forbidden", { status: 403 });
   const form = await request.formData();
   const email = String(form.get("email") ?? "");
-  const redirectTo = new URL("/login?error=invalid", request.url);
+  const redirectTo = new URL("/login?error=invalid", request.headers.get("origin") || request.url);
   if (!await assertLoginAllowed("customer", email, request)) return NextResponse.redirect(redirectTo, 303);
   const customer = await authenticateCustomer(email, String(form.get("password") ?? ""));
   if (!customer) {
@@ -16,5 +16,5 @@ export async function POST(request: Request) {
   }
   await clearLoginFailures("customer", normalizeCustomerEmail(email), request);
   await createCustomerSession(customer.id, request, { remember: form.get("remember") === "on" });
-  return NextResponse.redirect(new URL("/", request.url), 303);
+  return NextResponse.redirect(new URL("/", request.headers.get("origin") || request.url), 303);
 }
