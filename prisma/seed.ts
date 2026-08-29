@@ -19,7 +19,7 @@ async function main() {
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminEmail || !adminUsername || !adminPassword) throw new Error("ADMIN_EMAIL, ADMIN_USERNAME and ADMIN_PASSWORD are required to seed the admin user.");
   if (!/^[A-Za-z0-9_.-]{3,40}$/.test(adminUsername)) throw new Error("ADMIN_USERNAME must be 3-40 characters and contain only letters, numbers, dots, underscores, or hyphens.");
-  if (adminPassword.length < 12 || adminPassword.length > 128) throw new Error("ADMIN_PASSWORD must be between 12 and 128 characters.");
+  if (adminPassword.length < 8 || adminPassword.length > 128) throw new Error("ADMIN_PASSWORD must be between 8 and 128 characters.");
 
   const [veg, nonVeg] = await Promise.all([
     prisma.category.upsert({ where: { slug: "veg" }, update: { name: "Veg" }, create: { name: "Veg", slug: "veg" } }),
