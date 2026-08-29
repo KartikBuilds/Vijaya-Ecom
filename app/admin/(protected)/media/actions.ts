@@ -40,25 +40,42 @@ export async function deleteUnusedMediaAsset(form: FormData) {
         db.userGeneratedContent.count({ where: { imagePath: asset.url } }),
       ]);
       if (products + recipes + banners + ugc > 0) redirect("/admin/media?error=in-use");
+      if (asset.provider === "vercel-blob") {
+        if (process.env.BLOB_READ_WRITE_TOKEN) {
+          await del(asset.url).catch(() => undefined);
+        }
+      }
       await db.mediaAsset.delete({ where: { id } }).catch(() => undefined);
     }
   }
   redirect("/admin/media?success=deleted");
 }
 
+import { put, del } from "@vercel/blob";
+
 export async function uploadDevelopmentMedia(form: FormData) {
   await requirePermission("media:write");
-  if (process.env.NODE_ENV === "production" && !process.env.MEDIA_UPLOAD_PROVIDER) redirect("/admin/media?error=provider");
   const file = form.get("file");
   if (!(file instanceof File) || file.size < 1 || file.size > 5 * 1024 * 1024) redirect("/admin/media?error=upload");
   const buffer = Buffer.from(await file.arrayBuffer());
   const detected = isSafeUpload(buffer, file.type);
   if (!detected) redirect("/admin/media?error=upload");
   const finalName = `${randomUUID()}${detected.extension}`;
-  const uploadDir = join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(join(uploadDir, finalName), buffer, { flag: "wx" });
-  const url = `/uploads/${finalName}`;
-  await db.mediaAsset.create({ data: { filename: file.name.slice(0, 255), url, type: detected.type, sizeBytes: file.size, provider: "local-development", usageNotes: "Local development upload. Configure durable storage for production." } });
+
+  if (process.env.NODE_ENV === "production" || process.env.BLOB_READ_WRITE_TOKEN) {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) redirect("/admin/media?error=provider");
+    const blob = await put(`uploads/${finalName}`, file, {
+      access: "public",
+      contentType: file.type,
+    });
+    await db.mediaAsset.create({ data: { filename: file.name.slice(0, 255), url: blob.url, type: detected.type, sizeBytes: file.size, provider: "vercel-blob", usageNotes: "Production Vercel Blob storage." } });
+  } else {
+    const uploadDir = join(process.cwd(), "public", "uploads");
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(join(uploadDir, finalName), buffer, { flag: "wx" });
+    const url = `/uploads/${finalName}`;
+    await db.mediaAsset.create({ data: { filename: file.name.slice(0, 255), url, type: detected.type, sizeBytes: file.size, provider: "local-development", usageNotes: "Local development upload." } });
+  }
+
   redirect("/admin/media?success=uploaded");
 }
