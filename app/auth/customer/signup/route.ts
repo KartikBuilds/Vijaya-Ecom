@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/", request.url), 303);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return NextResponse.redirect(new URL("/signup?error=exists", request.url), 303);
-    console.error("Customer signup failed.");
+    console.error("Customer signup failed:", error);
     return NextResponse.redirect(new URL("/signup?error=validation", request.url), 303);
   }
 }
